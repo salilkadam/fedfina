@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: eleven
-          image: docker.io/docker4zerocool/fedfina:latest # updated by CI
+          image: docker.io/docker4zerocool/fedfina:c41b8b889c25d2253bd791d51b83357a6f537b44
           ports:
             - containerPort: 80
           resources:
