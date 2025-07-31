@@ -261,8 +261,7 @@ class OpenAIService:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=1000,
-                temperature=0.5,
-                response_format={"type": "json_object"}
+                temperature=0.5
             )
             
             import json

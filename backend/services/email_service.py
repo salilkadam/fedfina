@@ -102,7 +102,7 @@ class EmailService:
                 username=self.config.username,
                 password=self.config.password,
                 use_tls=self.config.use_tls,
-                start_tls=self.config.use_tls
+                start_tls=False  # Don't use STARTTLS when use_tls is True
             )
             
             logger.info(f"Email sent successfully to {to_email}")
