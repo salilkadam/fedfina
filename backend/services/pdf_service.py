@@ -121,11 +121,15 @@ class PDFService:
             doc = SimpleDocTemplate(filename, pagesize=A4)
             styles = self.create_custom_styles()
             
+            # Check for third-party intervention
+            speakers = set(msg.speaker for msg in transcript)
+            third_party_intervention = len(speakers) > 2  # More than user and agent
+            
             # Build the story (content)
             story = []
             
             # Title page
-            story.append(Paragraph("Conversation Report", styles['title']))
+            story.append(Paragraph(f"Report for {account_id}", styles['title']))
             story.append(Spacer(1, 20))
             
             # Report metadata
@@ -134,14 +138,19 @@ class PDFService:
                 ['Conversation ID:', conversation_id],
                 ['Account ID:', account_id],
                 ['User Email:', email_id],
-                ['Duration:', f"{metadata.get('duration', 0)} seconds"],
-                ['Message Count:', str(metadata.get('messageCount', 0))],
-                ['Platform:', metadata.get('platform', 'Unknown')],
-                ['Agent ID:', metadata.get('agentId', 'Unknown')]
+                ['Duration:', f"{metadata.get('duration', 0)} seconds"]
             ]
             
+            # Add third-party intervention flag if needed
+            if third_party_intervention:
+                metadata_data.append(['Third Party Intervention:', 'YES'])
+            else:
+                metadata_data.append(['Third Party Intervention:', 'NO'])
+            
             metadata_table = Table(metadata_data, colWidths=[2*inch, 4*inch])
-            metadata_table.setStyle(TableStyle([
+            
+            # Define table style
+            table_style = [
                 ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
                 ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
                 ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -149,7 +158,21 @@ class PDFService:
                 ('FONTSIZE', (0, 0), (-1, -1), 10),
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
                 ('GRID', (0, 0), (-1, -1), 1, colors.black)
-            ]))
+            ]
+            
+            # Add bold red styling for third-party intervention if present
+            if third_party_intervention:
+                # Find the row index for third-party intervention
+                for i, row in enumerate(metadata_data):
+                    if row[0] == 'Third Party Intervention:':
+                        table_style.extend([
+                            ('FONTNAME', (0, i), (-1, i), 'Helvetica-Bold'),
+                            ('TEXTCOLOR', (0, i), (-1, i), colors.red),
+                            ('FONTSIZE', (0, i), (-1, i), 11)
+                        ])
+                        break
+            
+            metadata_table.setStyle(TableStyle(table_style))
             
             story.append(metadata_table)
             story.append(Spacer(1, 20))
@@ -186,38 +209,6 @@ class PDFService:
                 story.append(Paragraph("⚠️ Follow-up Required", styles['highlight']))
                 story.append(Paragraph("This conversation requires follow-up action.", styles['body']))
                 story.append(Spacer(1, 10))
-            
-            # Conversation Transcript
-            story.append(PageBreak())
-            story.append(Paragraph("Conversation Transcript", styles['subtitle']))
-            story.append(Spacer(1, 10))
-            
-            # Create transcript table
-            transcript_data = [['Timestamp', 'Speaker', 'Message']]
-            for msg in transcript:
-                # Truncate long messages for better formatting
-                content = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
-                transcript_data.append([
-                    msg.timestamp,
-                    msg.speaker,
-                    content
-                ])
-            
-            transcript_table = Table(transcript_data, colWidths=[1.2*inch, 1*inch, 4.8*inch])
-            transcript_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, 0), 10),
-                ('FONTSIZE', (0, 1), (-1, -1), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('WORDWRAP', (0, 0), (-1, -1), True)
-            ]))
-            
-            story.append(transcript_table)
             
             # Build the PDF
             doc.build(story)
