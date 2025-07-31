@@ -215,7 +215,7 @@ async def receive_conversation_data(
             "metadata": data.metadata.dict(),
             "summary": data.summary.dict() if data.summary else None,
             "receivedAt": datetime.utcnow().isoformat(),
-            "status": "processing"
+            "status": "analyzing"
         }
         
         conversations_db[data.conversationId] = conversation_record
@@ -228,11 +228,11 @@ async def receive_conversation_data(
         
         return WebhookResponse(
             success=True,
-            message="Conversation data received successfully and processing started",
+            message="Conversation data received successfully and analysis started",
             data={
                 "conversationId": data.conversationId,
                 "processedAt": datetime.utcnow().isoformat(),
-                "status": "processing",
+                "status": "analyzing",
                 "webhookId": f"webhook_{int(time.time())}"
             }
         )
@@ -260,7 +260,20 @@ async def process_conversation_async(data: ConversationEndData):
             email_id=data.emailId
         )
         
-        # Step 2: Generate PDF report
+        # Update status to show analysis is complete
+        if data.conversationId in conversations_db:
+            conversations_db[data.conversationId]["status"] = "generating_report"
+            conversations_db[data.conversationId]["summary"] = summary.dict()
+        
+        # Step 2: Generate email content based on OpenAI analysis
+        logger.info(f"Generating email content for conversation {data.conversationId}")
+        email_content = await openai_svc.generate_email_content(
+            summary=summary,
+            account_id=data.accountId,
+            email_id=data.emailId
+        )
+        
+        # Step 3: Generate PDF report using the analyzed summary
         logger.info(f"Generating PDF report for conversation {data.conversationId}")
         pdf_svc = get_pdf_service()
         pdf_filepath = await pdf_svc.generate_conversation_report(
@@ -272,13 +285,10 @@ async def process_conversation_async(data: ConversationEndData):
             metadata=data.metadata.dict()
         )
         
-        # Step 3: Generate email content
-        logger.info(f"Generating email content for conversation {data.conversationId}")
-        email_content = await openai_svc.generate_email_content(
-            summary=summary,
-            account_id=data.accountId,
-            email_id=data.emailId
-        )
+        # Update status to show report generation is complete
+        if data.conversationId in conversations_db:
+            conversations_db[data.conversationId]["status"] = "sending_email"
+            conversations_db[data.conversationId]["pdf_filepath"] = pdf_filepath
         
         # Step 4: Send email with PDF attachment
         logger.info(f"Sending email for conversation {data.conversationId}")
@@ -292,11 +302,9 @@ async def process_conversation_async(data: ConversationEndData):
             pdf_filepath=pdf_filepath
         )
         
-        # Step 5: Update conversation status
+        # Step 5: Update conversation status to completed
         if data.conversationId in conversations_db:
             conversations_db[data.conversationId]["status"] = "completed"
-            conversations_db[data.conversationId]["summary"] = summary.dict()
-            conversations_db[data.conversationId]["pdf_filepath"] = pdf_filepath
             conversations_db[data.conversationId]["email_sent"] = email_sent
             conversations_db[data.conversationId]["completedAt"] = datetime.utcnow().isoformat()
         

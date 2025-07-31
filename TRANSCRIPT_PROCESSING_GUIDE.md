@@ -9,7 +9,7 @@ This guide explains the enhanced backend functionality that processes conversati
 ### 1. **Conversation Reception**
 - React app sends conversation data to `/api/v1/webhook/conversation`
 - Backend validates and stores the conversation
-- Processing starts asynchronously
+- Status: "analyzing" - OpenAI analysis starts asynchronously
 
 ### 2. **OpenAI Analysis**
 - Transcript is analyzed using OpenAI GPT-4
@@ -21,21 +21,30 @@ This guide explains the enhanced backend functionality that processes conversati
   - User intent
   - Action items
   - Follow-up requirements
+- Status: "generating_report" - Analysis complete, report generation starts
 
-### 3. **PDF Report Generation**
+### 3. **Email Content Generation**
+- Professional email content generated based on OpenAI analysis
+- Subject line and body content created
+- Status: "generating_report" - Email content ready
+
+### 4. **PDF Report Generation**
 - Professional PDF report created using ReportLab
+- Uses the analyzed summary from OpenAI
 - Includes:
   - Executive summary
   - Detailed analysis
   - Metadata and timestamps
   - Action items and follow-ups
   - Third-party intervention detection
+- Status: "sending_email" - Report generated, email sending starts
 
-### 4. **Email Delivery**
-- Email generated with professional content
+### 5. **Email Delivery**
+- Email sent with professional content
 - PDF attached to email
 - Sent to user's email address
 - Subject: "Report for Acct: {accountId}"
+- Status: "completed" - Process finished
 
 ## 🛠️ Configuration
 
@@ -333,9 +342,11 @@ Check logs for troubleshooting and monitoring.
 
 ## 🔄 Processing States
 
-1. **processing**: Conversation received, analysis in progress
-2. **completed**: Analysis complete, email sent
-3. **failed**: Error occurred during processing
+1. **analyzing**: Conversation received, OpenAI analysis in progress
+2. **generating_report**: Analysis complete, generating PDF report
+3. **sending_email**: Report generated, sending email
+4. **completed**: Process finished, email sent successfully
+5. **failed**: Error occurred during processing
 
 ## 📞 Support
 
