@@ -101,8 +101,8 @@ class EmailService:
                 port=self.config.port,
                 username=self.config.username,
                 password=self.config.password,
-                use_tls=self.config.use_tls,
-                start_tls=False  # Don't use STARTTLS when use_tls is True
+                use_tls=False,  # Use STARTTLS instead of TLS
+                start_tls=True
             )
             
             logger.info(f"Email sent successfully to {to_email}")
