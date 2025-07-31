@@ -147,8 +147,7 @@ class OpenAIService:
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                response_format={"type": "json_object"}
+                temperature=self.temperature
             )
             
             # Parse the JSON response
@@ -210,6 +209,8 @@ class OpenAIService:
             
         except Exception as e:
             logger.error(f"Error analyzing conversation with OpenAI: {str(e)}")
+            logger.error(f"OpenAI API Key configured: {bool(os.getenv('OPENAI_API_KEY'))}")
+            logger.error(f"OpenAI Model: {self.model}")
             # Return a default summary if OpenAI fails
             return ConversationSummary(
                 topic="Conversation Analysis",

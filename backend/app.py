@@ -40,12 +40,38 @@ class TranscriptMessage(BaseModel):
     messageId: str
     metadata: Optional[Dict[str, Any]] = None
 
+class KeyFactor(BaseModel):
+    category: str
+    points: List[str]
+
+class RiskFactor(BaseModel):
+    risk_type: str
+    description: str
+    severity: str
+
+class ThirdPartyIntervention(BaseModel):
+    speaker: str
+    questions_answered: List[str]
+    risk_level: str
+
+class ThirdPartyInterventionSummary(BaseModel):
+    detected: bool
+    speakers: List[str]
+    intervention_details: List[ThirdPartyIntervention]
+
 class ConversationSummary(BaseModel):
     topic: str
     sentiment: str
     resolution: str
     keywords: Optional[List[str]] = None
     intent: Optional[str] = None
+    summary: str
+    key_factors: Optional[List[KeyFactor]] = None
+    risk_factors: Optional[List[RiskFactor]] = None
+    third_party_intervention: Optional[ThirdPartyInterventionSummary] = None
+    recommendations: Optional[List[str]] = None
+    action_items: Optional[List[str]] = None
+    follow_up_required: bool = False
 
 class ConversationMetadata(BaseModel):
     sessionId: Optional[str] = None
@@ -253,12 +279,20 @@ async def process_conversation_async(data: ConversationEndData):
         
         # Step 1: Analyze conversation with OpenAI
         logger.info(f"Analyzing conversation {data.conversationId} with OpenAI")
-        openai_svc = get_openai_service()
-        summary = await openai_svc.analyze_conversation(
-            transcript=data.transcript,
-            account_id=data.accountId,
-            email_id=data.emailId
-        )
+        try:
+            openai_svc = get_openai_service()
+            logger.info(f"OpenAI service initialized for conversation {data.conversationId}")
+            summary = await openai_svc.analyze_conversation(
+                transcript=data.transcript,
+                account_id=data.accountId,
+                email_id=data.emailId
+            )
+            logger.info(f"OpenAI analysis completed for conversation {data.conversationId}")
+            logger.info(f"Summary topic: {summary.topic}")
+            logger.info(f"Summary sentiment: {summary.sentiment}")
+        except Exception as e:
+            logger.error(f"Error in OpenAI analysis for conversation {data.conversationId}: {str(e)}")
+            raise
         
         # Update status to show analysis is complete
         if data.conversationId in conversations_db:
