@@ -16,6 +16,25 @@ class TranscriptMessage(BaseModel):
     messageId: str
     metadata: Optional[Dict[str, Any]] = None
 
+class KeyFactor(BaseModel):
+    category: str
+    points: List[str]
+
+class RiskFactor(BaseModel):
+    risk_type: str
+    description: str
+    severity: str
+
+class ThirdPartyIntervention(BaseModel):
+    speaker: str
+    questions_answered: List[str]
+    risk_level: str
+
+class ThirdPartyInterventionSummary(BaseModel):
+    detected: bool
+    speakers: List[str]
+    intervention_details: List[ThirdPartyIntervention]
+
 class ConversationSummary(BaseModel):
     topic: str
     sentiment: str
@@ -23,6 +42,10 @@ class ConversationSummary(BaseModel):
     keywords: Optional[List[str]] = None
     intent: Optional[str] = None
     summary: str
+    key_factors: Optional[List[KeyFactor]] = None
+    risk_factors: Optional[List[RiskFactor]] = None
+    third_party_intervention: Optional[ThirdPartyInterventionSummary] = None
+    recommendations: Optional[List[str]] = None
     action_items: Optional[List[str]] = None
     follow_up_required: bool = False
 
@@ -47,7 +70,7 @@ class OpenAIService:
             formatted_transcript = self.format_transcript_for_analysis(transcript)
             
             prompt = f"""
-            Analyze the following conversation transcript and provide a comprehensive summary.
+            Analyze the following conversation transcript and create a comprehensive business assessment summary.
             
             Account ID: {account_id}
             User Email: {email_id}
@@ -57,22 +80,64 @@ class OpenAIService:
             
             Please provide a detailed analysis in the following JSON format:
             {{
-                "topic": "Main topic of conversation",
+                "topic": "Main topic of conversation (e.g., Business Loan Application Assessment)",
                 "sentiment": "Overall sentiment (positive/negative/neutral)",
-                "resolution": "How the conversation was resolved",
-                "keywords": ["key", "words", "extracted"],
-                "intent": "User's primary intent",
-                "summary": "Detailed summary of the conversation",
-                "action_items": ["action", "items", "if any"],
+                "resolution": "How the conversation was resolved or current status",
+                "keywords": ["key", "business", "terms", "extracted"],
+                "intent": "Primary business intent or purpose",
+                "summary": "Detailed summary of the conversation in English",
+                "key_factors": [
+                    {{
+                        "category": "Business Profile",
+                        "points": ["bullet point 1", "bullet point 2"]
+                    }},
+                    {{
+                        "category": "Financial Information",
+                        "points": ["bullet point 1", "bullet point 2"]
+                    }},
+                    {{
+                        "category": "Operational Details",
+                        "points": ["bullet point 1", "bullet point 2"]
+                    }}
+                ],
+                "risk_factors": [
+                    {{
+                        "risk_type": "Financial Risk",
+                        "description": "Description of the risk",
+                        "severity": "High/Medium/Low"
+                    }},
+                    {{
+                        "risk_type": "Operational Risk", 
+                        "description": "Description of the risk",
+                        "severity": "High/Medium/Low"
+                    }}
+                ],
+                "third_party_intervention": {{
+                    "detected": true/false,
+                    "speakers": ["list of all speakers identified"],
+                    "intervention_details": [
+                        {{
+                            "speaker": "name of third party",
+                            "questions_answered": ["specific questions they answered"],
+                            "risk_level": "High/Medium/Low"
+                        }}
+                    ]
+                }},
+                "recommendations": ["recommendation 1", "recommendation 2"],
+                "action_items": ["action item 1", "action item 2"],
                 "follow_up_required": true/false
             }}
             
             Focus on:
-            1. Key points discussed
-            2. User's main concerns or questions
-            3. Solutions or responses provided
-            4. Any follow-up actions needed
-            5. Overall satisfaction indicators
+            1. Key business factors and information requested by the interviewer
+            2. Financial details, operational structure, and business model
+            3. Risk factors and potential concerns
+            4. Any third-party intervention (someone other than the main interviewee answering questions)
+            5. Specific recommendations and action items
+            6. Overall assessment for business loan or credit purposes
+            
+            Note: If the conversation is in Hindi or other languages, provide the summary in English.
+            Identify any third-party speakers and mark their interventions as potential risks.
             """
             
             response = self.client.chat.completions.create(
@@ -90,13 +155,55 @@ class OpenAIService:
             import json
             analysis_data = json.loads(response.choices[0].message.content)
             
+            # Parse key factors
+            key_factors = []
+            if "key_factors" in analysis_data:
+                for factor in analysis_data["key_factors"]:
+                    key_factors.append(KeyFactor(
+                        category=factor.get("category", ""),
+                        points=factor.get("points", [])
+                    ))
+            
+            # Parse risk factors
+            risk_factors = []
+            if "risk_factors" in analysis_data:
+                for risk in analysis_data["risk_factors"]:
+                    risk_factors.append(RiskFactor(
+                        risk_type=risk.get("risk_type", ""),
+                        description=risk.get("description", ""),
+                        severity=risk.get("severity", "Medium")
+                    ))
+            
+            # Parse third-party intervention
+            third_party_intervention = None
+            if "third_party_intervention" in analysis_data:
+                intervention_data = analysis_data["third_party_intervention"]
+                intervention_details = []
+                if "intervention_details" in intervention_data:
+                    for detail in intervention_data["intervention_details"]:
+                        intervention_details.append(ThirdPartyIntervention(
+                            speaker=detail.get("speaker", ""),
+                            questions_answered=detail.get("questions_answered", []),
+                            risk_level=detail.get("risk_level", "Medium")
+                        ))
+                
+                third_party_intervention = ThirdPartyInterventionSummary(
+                    detected=intervention_data.get("detected", False),
+                    speakers=intervention_data.get("speakers", []),
+                    intervention_details=intervention_details
+                )
+            
             return ConversationSummary(
-                topic=analysis_data.get("topic", "General Discussion"),
+                topic=analysis_data.get("topic", "Business Assessment"),
                 sentiment=analysis_data.get("sentiment", "neutral"),
-                resolution=analysis_data.get("resolution", "No specific resolution"),
+                resolution=analysis_data.get("resolution", "Assessment in progress"),
                 keywords=analysis_data.get("keywords", []),
-                intent=analysis_data.get("intent", "General inquiry"),
+                intent=analysis_data.get("intent", "Business assessment"),
                 summary=analysis_data.get("summary", "No summary available"),
+                key_factors=key_factors,
+                risk_factors=risk_factors,
+                third_party_intervention=third_party_intervention,
+                recommendations=analysis_data.get("recommendations", []),
                 action_items=analysis_data.get("action_items", []),
                 follow_up_required=analysis_data.get("follow_up_required", False)
             )

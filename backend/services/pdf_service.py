@@ -22,6 +22,25 @@ class TranscriptMessage(BaseModel):
     messageId: str
     metadata: Optional[Dict[str, Any]] = None
 
+class KeyFactor(BaseModel):
+    category: str
+    points: List[str]
+
+class RiskFactor(BaseModel):
+    risk_type: str
+    description: str
+    severity: str
+
+class ThirdPartyIntervention(BaseModel):
+    speaker: str
+    questions_answered: List[str]
+    risk_level: str
+
+class ThirdPartyInterventionSummary(BaseModel):
+    detected: bool
+    speakers: List[str]
+    intervention_details: List[ThirdPartyIntervention]
+
 class ConversationSummary(BaseModel):
     topic: str
     sentiment: str
@@ -29,6 +48,10 @@ class ConversationSummary(BaseModel):
     keywords: Optional[List[str]] = None
     intent: Optional[str] = None
     summary: str
+    key_factors: Optional[List[KeyFactor]] = None
+    risk_factors: Optional[List[RiskFactor]] = None
+    third_party_intervention: Optional[ThirdPartyInterventionSummary] = None
+    recommendations: Optional[List[str]] = None
     action_items: Optional[List[str]] = None
     follow_up_required: bool = False
 
@@ -190,11 +213,47 @@ class PDFService:
             story.append(Paragraph(summary.summary, styles['body']))
             story.append(Spacer(1, 10))
             
-            # Keywords
-            if summary.keywords:
-                story.append(Paragraph("Key Topics", styles['section']))
-                keywords_text = ", ".join(summary.keywords)
-                story.append(Paragraph(keywords_text, styles['body']))
+            # Key Factors
+            if summary.key_factors:
+                story.append(Paragraph("Key Business Factors", styles['section']))
+                for factor in summary.key_factors:
+                    story.append(Paragraph(f"<b>{factor.category}:</b>", styles['body']))
+                    for point in factor.points:
+                        story.append(Paragraph(f"• {point}", styles['body']))
+                    story.append(Spacer(1, 5))
+                story.append(Spacer(1, 10))
+            
+            # Risk Assessment
+            if summary.risk_factors:
+                story.append(Paragraph("Risk Assessment", styles['section']))
+                for risk in summary.risk_factors:
+                    risk_color = colors.red if risk.severity == "High" else colors.orange if risk.severity == "Medium" else colors.green
+                    story.append(Paragraph(f"<b>{risk.risk_type} ({risk.severity}):</b> {risk.description}", 
+                                         ParagraphStyle('RiskStyle', parent=styles['body'], textColor=risk_color)))
+                story.append(Spacer(1, 10))
+            
+            # Third-Party Intervention
+            if summary.third_party_intervention and summary.third_party_intervention.detected:
+                story.append(Paragraph("⚠️ Third-Party Intervention Detected", styles['highlight']))
+                story.append(Paragraph("The following third-party speakers were identified:", styles['body']))
+                for speaker in summary.third_party_intervention.speakers:
+                    story.append(Paragraph(f"• {speaker}", styles['body']))
+                
+                if summary.third_party_intervention.intervention_details:
+                    story.append(Paragraph("Intervention Details:", styles['body']))
+                    for detail in summary.third_party_intervention.intervention_details:
+                        story.append(Paragraph(f"<b>{detail.speaker} (Risk Level: {detail.risk_level}):</b>", 
+                                             ParagraphStyle('InterventionStyle', parent=styles['body'], textColor=colors.red)))
+                        for question in detail.questions_answered:
+                            story.append(Paragraph(f"  - Answered: {question}", 
+                                                 ParagraphStyle('InterventionDetailStyle', parent=styles['body'], textColor=colors.red)))
+                story.append(Spacer(1, 10))
+            
+            # Recommendations
+            if summary.recommendations:
+                story.append(Paragraph("Recommendations", styles['section']))
+                for i, rec in enumerate(summary.recommendations, 1):
+                    story.append(Paragraph(f"{i}. {rec}", styles['body']))
                 story.append(Spacer(1, 10))
             
             # Action Items
