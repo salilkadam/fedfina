@@ -7,7 +7,18 @@ from datetime import datetime
 import logging
 import os
 import json
+import asyncio
+import time
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+# Import services
+from services.openai_service import OpenAIService, ConversationSummary
+from services.pdf_service import PDFService
+from services.email_service import EmailService
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -93,10 +104,34 @@ class HealthResponse(BaseModel):
 # In-memory storage (replace with database in production)
 conversations_db = {}
 
+# Initialize services (lazy initialization)
+openai_service = None
+pdf_service = None
+email_service = None
+
+def get_openai_service():
+    global openai_service
+    if openai_service is None:
+        openai_service = OpenAIService()
+    return openai_service
+
+def get_pdf_service():
+    global pdf_service
+    if pdf_service is None:
+        pdf_service = PDFService()
+    return pdf_service
+
+def get_email_service():
+    global email_service
+    if email_service is None:
+        email_service = EmailService()
+    return email_service
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting webhook API server...")
+    logger.info("Initializing services...")
     yield
     # Shutdown
     logger.info("Shutting down webhook API server...")
@@ -180,7 +215,7 @@ async def receive_conversation_data(
             "metadata": data.metadata.dict(),
             "summary": data.summary.dict() if data.summary else None,
             "receivedAt": datetime.utcnow().isoformat(),
-            "status": "processed"
+            "status": "processing"
         }
         
         conversations_db[data.conversationId] = conversation_record
@@ -188,19 +223,16 @@ async def receive_conversation_data(
         # Log the conversation
         logger.info(f"Received conversation {data.conversationId} from {data.emailId}")
         
-        # Here you would typically:
-        # 1. Store in database
-        # 2. Process the conversation
-        # 3. Send to external systems
-        # 4. Generate analytics
+        # Process conversation asynchronously
+        asyncio.create_task(process_conversation_async(data))
         
         return WebhookResponse(
             success=True,
-            message="Conversation data received successfully",
+            message="Conversation data received successfully and processing started",
             data={
                 "conversationId": data.conversationId,
                 "processedAt": datetime.utcnow().isoformat(),
-                "status": "processed",
+                "status": "processing",
                 "webhookId": f"webhook_{int(time.time())}"
             }
         )
@@ -213,6 +245,70 @@ async def receive_conversation_data(
             status_code=500,
             detail="Internal server error"
         )
+
+async def process_conversation_async(data: ConversationEndData):
+    """Process conversation asynchronously: analyze, generate PDF, and send email"""
+    try:
+        logger.info(f"Starting async processing for conversation {data.conversationId}")
+        
+        # Step 1: Analyze conversation with OpenAI
+        logger.info(f"Analyzing conversation {data.conversationId} with OpenAI")
+        openai_svc = get_openai_service()
+        summary = await openai_svc.analyze_conversation(
+            transcript=data.transcript,
+            account_id=data.accountId,
+            email_id=data.emailId
+        )
+        
+        # Step 2: Generate PDF report
+        logger.info(f"Generating PDF report for conversation {data.conversationId}")
+        pdf_svc = get_pdf_service()
+        pdf_filepath = await pdf_svc.generate_conversation_report(
+            conversation_id=data.conversationId,
+            account_id=data.accountId,
+            email_id=data.emailId,
+            transcript=data.transcript,
+            summary=summary,
+            metadata=data.metadata.dict()
+        )
+        
+        # Step 3: Generate email content
+        logger.info(f"Generating email content for conversation {data.conversationId}")
+        email_content = await openai_svc.generate_email_content(
+            summary=summary,
+            account_id=data.accountId,
+            email_id=data.emailId
+        )
+        
+        # Step 4: Send email with PDF attachment
+        logger.info(f"Sending email for conversation {data.conversationId}")
+        email_svc = get_email_service()
+        email_sent = await email_svc.send_conversation_report(
+            to_email=data.emailId,
+            account_id=data.accountId,
+            subject=email_content["subject"],
+            html_body=email_content["html_body"],
+            text_body=email_content["text_body"],
+            pdf_filepath=pdf_filepath
+        )
+        
+        # Step 5: Update conversation status
+        if data.conversationId in conversations_db:
+            conversations_db[data.conversationId]["status"] = "completed"
+            conversations_db[data.conversationId]["summary"] = summary.dict()
+            conversations_db[data.conversationId]["pdf_filepath"] = pdf_filepath
+            conversations_db[data.conversationId]["email_sent"] = email_sent
+            conversations_db[data.conversationId]["completedAt"] = datetime.utcnow().isoformat()
+        
+        logger.info(f"Successfully completed processing for conversation {data.conversationId}")
+        
+    except Exception as e:
+        logger.error(f"Error in async processing for conversation {data.conversationId}: {str(e)}")
+        # Update conversation status to failed
+        if data.conversationId in conversations_db:
+            conversations_db[data.conversationId]["status"] = "failed"
+            conversations_db[data.conversationId]["error"] = str(e)
+            conversations_db[data.conversationId]["failedAt"] = datetime.utcnow().isoformat()
 
 @app.get("/api/v1/conversations/{conversation_id}", response_model=ConversationStatus)
 async def get_conversation_status(
@@ -302,6 +398,39 @@ async def list_conversations(
         }
     }
 
+@app.post("/api/v1/test/email")
+async def test_email_send(
+    email: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Test email sending functionality
+    """
+    try:
+        email_svc = get_email_service()
+        success = await email_svc.send_test_email(email)
+        return {
+            "success": success,
+            "message": "Test email sent successfully" if success else "Failed to send test email",
+            "email": email
+        }
+    except Exception as e:
+        logger.error(f"Error sending test email: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error sending test email: {str(e)}"
+        )
+
+@app.get("/api/v1/config/email")
+async def get_email_config(
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get email configuration status
+    """
+    email_svc = get_email_service()
+    return email_svc.get_config_status()
+
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health_check():
     """
@@ -314,7 +443,9 @@ async def health_check():
         dependencies={
             "database": "connected",
             "redis": "connected",
-            "elevenlabs": "connected"
+            "elevenlabs": "connected",
+            "openai": "configured" if os.getenv("OPENAI_API_KEY") else "not_configured",
+            "email": "configured" if get_email_service()._validate_config() else "not_configured"
         }
     )
 
