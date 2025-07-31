@@ -1,10 +1,76 @@
 version: '3.8'
+
 services:
+  # Frontend React App
   frontend:
     build:
-      context: ./
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_BASE_URL=http://localhost:3000
+      - REACT_APP_API_KEY=${API_KEY:-your-api-key}
+      - REACT_APP_ELEVENLABS_AGENT_ID=${ELEVENLABS_AGENT_ID:-agent_01jxn7fwb2eyq8p6k4m3en4xtm}
+      - REACT_APP_ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-your-elevenlabs-api-key}
+      - REACT_APP_WIDGET_PRIMARY_COLOR=${WIDGET_PRIMARY_COLOR:-#007bff}
+      - REACT_APP_WIDGET_BACKGROUND_COLOR=${WIDGET_BACKGROUND_COLOR:-#ffffff}
+      - REACT_APP_WIDGET_BORDER_RADIUS=${WIDGET_BORDER_RADIUS:-12px}
+      - REACT_APP_WIDGET_FONT_FAMILY=${WIDGET_FONT_FAMILY:-Inter, system-ui, sans-serif}
+      - REACT_APP_WIDGET_ENABLE_TRANSCRIPTION=${WIDGET_ENABLE_TRANSCRIPTION:-true}
+      - REACT_APP_WIDGET_ENABLE_AUDIO_RECORDING=${WIDGET_ENABLE_AUDIO_RECORDING:-true}
+      - REACT_APP_WIDGET_ENABLE_FILE_UPLOAD=${WIDGET_ENABLE_FILE_UPLOAD:-false}
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
-    platform: linux/amd64
-    restart: unless-stopped 
+      - "8000:8000"
+    environment:
+      - API_SECRET_KEY=${API_SECRET_KEY:-your-secret-key}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-your-webhook-secret}
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:80,http://frontend:80
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    working_dir: /app
+
+  # Redis for caching and session storage (optional)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis-data: 
