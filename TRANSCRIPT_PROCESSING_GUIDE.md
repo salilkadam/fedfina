@@ -27,9 +27,9 @@ This guide explains the enhanced backend functionality that processes conversati
 - Includes:
   - Executive summary
   - Detailed analysis
-  - Conversation transcript
   - Metadata and timestamps
   - Action items and follow-ups
+  - Third-party intervention detection
 
 ### 4. **Email Delivery**
 - Email generated with professional content
@@ -183,6 +183,34 @@ backend/
 └── .env                       # Environment variables
 ```
 
+## 📄 PDF Report Format
+
+### Report Title
+- **Format**: "Report for {Account ID}"
+- **Example**: "Report for acc123"
+
+### Metadata Table
+- Report Generated (timestamp)
+- Conversation ID
+- Account ID
+- User Email
+- Duration (in seconds)
+- **Third Party Intervention**: YES/NO (bold red if YES)
+
+### Content Sections
+1. **Executive Summary**
+   - Topic, Sentiment, Intent, Resolution
+2. **Detailed Summary**
+   - Comprehensive analysis
+3. **Key Topics** (if keywords available)
+4. **Action Items** (if any)
+5. **Follow-up Required** (if flagged)
+
+### Third-Party Intervention Detection
+- **Triggered**: When more than 2 speakers identified in transcript
+- **Display**: Bold red text in metadata table
+- **Purpose**: Flag conversations requiring special attention
+
 ## 🔧 Services
 
 ### 1. **OpenAI Service** (`openai_service.py`)
@@ -199,8 +227,9 @@ backend/
 - **Features**:
   - Executive summary
   - Detailed analysis
-  - Conversation transcript
   - Professional formatting
+  - Third-party intervention detection
+  - Account-specific titles
 - **Storage**: `PDF_STORAGE_PATH`
 
 ### 3. **Email Service** (`email_service.py`)
@@ -222,7 +251,7 @@ The system generates professional emails with:
   - Key points discussed
   - Action items
   - Follow-up requirements
-- **Attachment**: Complete PDF report
+- **Attachment**: Complete PDF report (without transcript)
 
 ## 🚀 Deployment
 
