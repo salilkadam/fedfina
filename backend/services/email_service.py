@@ -36,7 +36,7 @@ class EmailService:
             password=os.getenv("SMTP_PASSWORD", ""),
             use_tls=os.getenv("SMTP_USE_TLS", "true").lower() == "true",
             from_email=os.getenv("SMTP_FROM_EMAIL", ""),
-            from_name=os.getenv("SMTP_FROM_NAME", "FedFina Reports")
+            from_name=os.getenv("SMTP_FROM_NAME", "Neha, AI Agent, Bionic AI Solutions")
         )
     
     def _validate_config(self) -> bool:
@@ -71,6 +71,7 @@ class EmailService:
             message['From'] = f"{self.config.from_name} <{self.config.from_email}>"
             message['To'] = to_email
             message['Subject'] = subject
+            message['Reply-To'] = self.config.from_email
             
             # Add text and HTML parts
             text_part = MIMEText(text_body, 'plain', 'utf-8')

@@ -228,22 +228,30 @@ class OpenAIService:
         """Generate email content based on conversation summary"""
         try:
             prompt = f"""
-            Generate professional email content for a conversation report.
+            Generate professional email content for an officer (information collector) about a client interview.
             
-            Account ID: {account_id}
-            User Email: {email_id}
+            Officer Email: {email_id}
+            Client Account ID: {account_id}
             
             Conversation Summary:
             - Topic: {summary.topic}
             - Sentiment: {summary.sentiment}
             - Resolution: {summary.resolution}
             - Summary: {summary.summary}
+            - Key Factors: {', '.join([f"{factor.category}: {', '.join(factor.points[:2])}" for factor in summary.key_factors]) if summary.key_factors else 'None'}
+            - Risk Factors: {', '.join([f"{risk.risk_type} ({risk.severity})" for risk in summary.risk_factors]) if summary.risk_factors else 'None'}
+            - Third Party Intervention: {'Detected' if summary.third_party_intervention and summary.third_party_intervention.detected else 'None'}
             - Action Items: {', '.join(summary.action_items) if summary.action_items else 'None'}
             - Follow-up Required: {summary.follow_up_required}
             
-            Generate:
+            Generate an email from Neha (AI Agent) to the officer who conducted the interview:
             1. A professional email subject line
-            2. A concise email body (HTML format)
+            2. A concise email body (HTML format) that includes:
+               - Brief summary of the client interview
+               - Key findings and risk factors
+               - Any third-party intervention detected
+               - Action items and recommendations
+               - Professional tone for internal reporting
             3. A plain text version of the email body
             
             Return in JSON format:
