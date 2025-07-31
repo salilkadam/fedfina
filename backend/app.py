@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from services.openai_service import OpenAIService, ConversationSummary
 from services.pdf_service import PDFService
 from services.email_service import EmailService
+from services.minio_service import MinIOService
 
 # Load environment variables from .env file
 load_dotenv()
@@ -134,6 +135,7 @@ conversations_db = {}
 openai_service = None
 pdf_service = None
 email_service = None
+minio_service = None
 
 def get_openai_service():
     global openai_service
@@ -152,6 +154,12 @@ def get_email_service():
     if email_service is None:
         email_service = EmailService()
     return email_service
+
+def get_minio_service():
+    global minio_service
+    if minio_service is None:
+        minio_service = MinIOService()
+    return minio_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -319,6 +327,35 @@ async def process_conversation_async(data: ConversationEndData):
             metadata=data.metadata.dict()
         )
         
+        # Step 3.5: Upload files to MinIO
+        logger.info(f"Uploading files to MinIO for conversation {data.conversationId}")
+        minio_svc = get_minio_service()
+        
+        # Upload transcript JSON
+        transcript_upload = await minio_svc.upload_transcript_json(
+            transcript_data=[msg.dict() for msg in data.transcript],
+            account_id=data.accountId,
+            conversation_id=data.conversationId
+        )
+        
+        # Upload PDF report
+        pdf_upload = await minio_svc.upload_file(
+            file_path=pdf_filepath,
+            account_id=data.accountId,
+            file_type="reports",
+            conversation_id=data.conversationId,
+            content_type="application/pdf"
+        )
+        
+        if transcript_upload.success and pdf_upload.success:
+            logger.info(f"Successfully uploaded files to MinIO for conversation {data.conversationId}")
+            logger.info(f"Transcript URL: {transcript_upload.file_url}")
+            logger.info(f"PDF URL: {pdf_upload.file_url}")
+        else:
+            logger.error(f"Failed to upload files to MinIO for conversation {data.conversationId}")
+            logger.error(f"Transcript upload error: {transcript_upload.error}")
+            logger.error(f"PDF upload error: {pdf_upload.error}")
+        
         # Update status to show report generation is complete
         if data.conversationId in conversations_db:
             conversations_db[data.conversationId]["status"] = "sending_email"
@@ -473,6 +510,16 @@ async def get_email_config(
     email_svc = get_email_service()
     return email_svc.get_config_status()
 
+@app.get("/api/v1/config/minio")
+async def get_minio_config(
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get MinIO configuration status
+    """
+    minio_svc = get_minio_service()
+    return minio_svc.get_config_status()
+
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health_check():
     """
@@ -487,7 +534,8 @@ async def health_check():
             "redis": "connected",
             "elevenlabs": "connected",
             "openai": "configured" if os.getenv("OPENAI_API_KEY") else "not_configured",
-            "email": "configured" if get_email_service()._validate_config() else "not_configured"
+            "email": "configured" if get_email_service()._validate_config() else "not_configured",
+            "minio": "not_configured"  # MinIO not available in current environment
         }
     )
 
