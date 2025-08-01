@@ -250,6 +250,17 @@ backend/
   - Configuration validation
 - **Configuration**: SMTP settings
 
+### 4. **MinIO Service** (`minio_service.py`)
+- **Purpose**: Store files in MinIO object storage
+- **Features**:
+  - File upload to MinIO bucket
+  - Transcript JSON storage
+  - PDF report storage
+  - Audio file storage (if available)
+  - Presigned URL generation
+  - File listing and management
+- **Configuration**: MinIO settings
+
 ## 📧 Email Template
 
 The system generates professional emails with:
@@ -300,7 +311,8 @@ curl -H "Authorization: Bearer your-secret-key-here" \
     "redis": "connected",
     "elevenlabs": "connected",
     "openai": "configured",
-    "email": "configured"
+    "email": "configured",
+    "minio": "configured"
   }
 }
 ```
@@ -344,9 +356,10 @@ Check logs for troubleshooting and monitoring.
 
 1. **analyzing**: Conversation received, OpenAI analysis in progress
 2. **generating_report**: Analysis complete, generating PDF report
-3. **sending_email**: Report generated, sending email
-4. **completed**: Process finished, email sent successfully
-5. **failed**: Error occurred during processing
+3. **uploading_files**: Report generated, uploading to MinIO storage
+4. **sending_email**: Files uploaded, sending email
+5. **completed**: Process finished, email sent successfully
+6. **failed**: Error occurred during processing
 
 ## 📞 Support
 
