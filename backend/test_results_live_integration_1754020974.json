@@ -1,0 +1,49 @@
+{
+  "test_id": "test_live_integration_1754020956",
+  "start_time": "2025-08-01T04:02:36.904057",
+  "end_time": "2025-08-01T04:02:54.471421",
+  "duration_seconds": 17.567364,
+  "total_tests": 5,
+  "passed_tests": 4,
+  "failed_tests": 1,
+  "skipped_tests": 0,
+  "success_rate": 80.0,
+  "results": {
+    "openai": {
+      "status": "PASS",
+      "summary_topic": "Conversation Analysis",
+      "summary_sentiment": "neutral",
+      "email_subject": "Summary and Analysis: Client Interview - Account ID: test_account_live",
+      "email_body_length": 921
+    },
+    "minio": {
+      "status": "PASS",
+      "file_url": "http://localhost:9000/fedfina-reports/test_account_live/test/test_live_integration_1754020956_20250801_040253.json",
+      "file_size": 790,
+      "presigned_url": true
+    },
+    "email": {
+      "status": "PASS",
+      "test_email": "test@bionicaisolutions.com",
+      "config_status": {
+        "enabled": true,
+        "configured": true,
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "username": "Salil.Kadam@gmail.com",
+        "from_email": "Salil.Kadam@bionicaisolutions.com",
+        "use_tls": true
+      }
+    },
+    "database": {
+      "status": "FAIL",
+      "error": "Interview creation failed"
+    },
+    "pdf": {
+      "status": "PASS",
+      "pdf_filepath": "./pdf_reports/conversation_report_test_account_live_test_live_integration_1754020956_20250801_040254.pdf",
+      "file_size": 3360,
+      "file_exists": true
+    }
+  }
+}

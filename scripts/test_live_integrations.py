@@ -155,7 +155,47 @@ class LiveIntegrationTester:
             # Test email configuration
             config_status = email_svc.get_config_status()
             
-            if not config_status["configured"]:
+            # Always try to send a test email if configured
+            if config_status["configured"]:
+                # Test email sending (use test email)
+                test_email = "test@bionicaisolutions.com"
+                subject = "Live Integration Test - FedFina Enhanced Reporting"
+                html_body = """
+                <h2>Live Integration Test Results</h2>
+                <p>This is a test email from the FedFina Enhanced Reporting system.</p>
+                <p><strong>Test Time:</strong> {}</p>
+                <p><strong>Test ID:</strong> {}</p>
+                """.format(datetime.now().isoformat(), self.test_data["conversation_id"])
+                
+                text_body = f"""
+                Live Integration Test Results
+                
+                This is a test email from the FedFina Enhanced Reporting system.
+                
+                Test Time: {datetime.now().isoformat()}
+                Test ID: {self.test_data["conversation_id"]}
+                """
+                
+                success = await email_svc.send_conversation_report(
+                    to_email=test_email,
+                    account_id=self.test_data["account_id"],
+                    subject=subject,
+                    html_body=html_body,
+                    text_body=text_body
+                )
+                
+                if success:
+                    result = {
+                        "status": "PASS",
+                        "test_email": test_email,
+                        "config_status": config_status
+                    }
+                    logger.info(f"✅ Email Service Test PASSED - Sent to: {test_email}")
+                    return result
+                else:
+                    logger.error("❌ Email Service Test FAILED - Email not sent")
+                    return {"status": "FAIL", "error": "Email sending failed"}
+            else:
                 logger.warning("⚠️ Email service not configured, skipping live test")
                 return {
                     "status": "SKIP",
@@ -214,11 +254,44 @@ class LiveIntegrationTester:
             # Test configuration status
             config_status = db_svc.get_config_status()
             
-            if not config_status["engine_available"]:
-                logger.warning("⚠️ Database service not available, skipping live test")
+            # Try to create a test record if database is configured
+            if config_status["database_url_configured"]:
+                # Test interview creation
+                from services.database_service import ClientInterviewCreate
+                
+                interview_data = ClientInterviewCreate(
+                    conversation_id=self.test_data["conversation_id"],
+                    officer_name="Test Officer",
+                    officer_email=self.test_data["email_id"],
+                    client_account_id=self.test_data["account_id"],
+                    minio_transcript_url="http://test.com/transcript.json",
+                    minio_report_url="http://test.com/report.pdf",
+                    status="test"
+                )
+                
+                interview = await db_svc.create_client_interview(interview_data)
+                
+                if interview:
+                    # Test retrieval
+                    retrieved = await db_svc.get_client_interview(self.test_data["conversation_id"])
+                    
+                    result = {
+                        "status": "PASS",
+                        "interview_id": interview.id,
+                        "conversation_id": interview.conversation_id,
+                        "retrieved_successfully": retrieved is not None,
+                        "config_status": config_status
+                    }
+                    logger.info(f"✅ Database Service Test PASSED - Interview ID: {interview.id}")
+                    return result
+                else:
+                    logger.error("❌ Database Service Test FAILED - Interview creation failed")
+                    return {"status": "FAIL", "error": "Interview creation failed"}
+            else:
+                logger.warning("⚠️ Database service not configured, skipping live test")
                 return {
                     "status": "SKIP",
-                    "reason": "Database service not available",
+                    "reason": "Database service not configured",
                     "config_status": config_status
                 }
             
@@ -372,9 +445,18 @@ async def main():
     print("🧪 FedFina Enhanced Reporting - Live Integration Tests")
     print("=" * 60)
     
-    # Load environment variables
+    # Load environment variables from backend .env file
     from dotenv import load_dotenv
-    load_dotenv()
+    import os
+    
+    # Load from backend .env file
+    backend_env_path = os.path.join(os.path.dirname(__file__), '..', 'backend', '.env')
+    if os.path.exists(backend_env_path):
+        load_dotenv(backend_env_path)
+        print(f"✅ Loaded environment from: {backend_env_path}")
+    else:
+        load_dotenv()
+        print("⚠️  Backend .env file not found, using default .env")
     
     # Check if we're in test environment
     if os.getenv("ENV") != "test":

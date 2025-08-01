@@ -1,0 +1,50 @@
+{
+  "test_id": "test_live_integration_1754020305",
+  "start_time": "2025-08-01T03:51:45.532089",
+  "end_time": "2025-08-01T03:51:45.575725",
+  "duration_seconds": 0.043636,
+  "total_tests": 5,
+  "passed_tests": 1,
+  "failed_tests": 2,
+  "skipped_tests": 2,
+  "success_rate": 20.0,
+  "results": {
+    "openai": {
+      "status": "FAIL",
+      "error": "The api_key client option must be set either by passing api_key to the client or by setting the OPENAI_API_KEY environment variable"
+    },
+    "minio": {
+      "status": "PASS",
+      "file_url": "http://localhost:9000/fedfina-reports/test_account_live/test/test_live_integration_1754020305_20250801_035145.json",
+      "file_size": 790,
+      "presigned_url": true
+    },
+    "email": {
+      "status": "SKIP",
+      "reason": "Email service not configured",
+      "config_status": {
+        "enabled": true,
+        "configured": false,
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "username": "",
+        "from_email": "",
+        "use_tls": true
+      }
+    },
+    "database": {
+      "status": "SKIP",
+      "reason": "Database service not available",
+      "config_status": {
+        "database_url_configured": true,
+        "engine_available": false,
+        "session_factory_available": false,
+        "tables_created": false
+      }
+    },
+    "pdf": {
+      "status": "FAIL",
+      "error": "Failed to generate PDF report: 'dict' object has no attribute 'speaker'"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "test_id": "test_live_integration_1754020900",
+  "start_time": "2025-08-01T04:01:40.344052",
+  "end_time": "2025-08-01T04:01:54.923266",
+  "duration_seconds": 14.579214,
+  "total_tests": 5,
+  "passed_tests": 3,
+  "failed_tests": 2,
+  "skipped_tests": 0,
+  "success_rate": 60.0,
+  "results": {
+    "openai": {
+      "status": "PASS",
+      "summary_topic": "Conversation Analysis",
+      "summary_sentiment": "neutral",
+      "email_subject": "Client Interview Summary: Account ID - test_account_live",
+      "email_body_length": 972
+    },
+    "minio": {
+      "status": "PASS",
+      "file_url": "http://localhost:9000/fedfina-reports/test_account_live/test/test_live_integration_1754020900_20250801_040154.json",
+      "file_size": 790,
+      "presigned_url": true
+    },
+    "email": {
+      "status": "FAIL",
+      "error": "'EmailService' object has no attribute 'send_email'"
+    },
+    "database": {
+      "status": "FAIL",
+      "error": "Interview creation failed"
+    },
+    "pdf": {
+      "status": "PASS",
+      "pdf_filepath": "./pdf_reports/conversation_report_test_account_live_test_live_integration_1754020900_20250801_040154.pdf",
+      "file_size": 3360,
+      "file_exists": true
+    }
+  }
+}
