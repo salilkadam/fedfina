@@ -177,6 +177,30 @@ curl -H "Authorization: Bearer your-secret-key-here" \
   "http://localhost:8000/api/v1/config/email"
 ```
 
+### 4. **Test MinIO Configuration**
+```bash
+curl -H "Authorization: Bearer your-secret-key-here" \
+  "http://localhost:8000/api/v1/config/minio"
+```
+
+### 5. **Test Database Configuration**
+```bash
+curl -H "Authorization: Bearer your-secret-key-here" \
+  "http://localhost:8000/api/v1/config/database"
+```
+
+### 6. **List Client Interviews**
+```bash
+curl -H "Authorization: Bearer your-secret-key-here" \
+  "http://localhost:8000/api/v1/interviews"
+```
+
+### 7. **Get Interview Statistics**
+```bash
+curl -H "Authorization: Bearer your-secret-key-here" \
+  "http://localhost:8000/api/v1/interviews/statistics"
+```
+
 ## 📁 File Structure
 
 ```
@@ -185,7 +209,9 @@ backend/
 │   ├── __init__.py
 │   ├── openai_service.py      # OpenAI integration
 │   ├── pdf_service.py         # PDF generation
-│   └── email_service.py       # Email functionality
+│   ├── email_service.py       # Email functionality
+│   ├── minio_service.py       # MinIO file storage
+│   └── database_service.py    # PostgreSQL database
 ├── pdf_reports/               # Generated PDF files
 ├── app.py                     # Main FastAPI application
 ├── requirements.txt           # Dependencies
@@ -261,6 +287,16 @@ backend/
   - File listing and management
 - **Configuration**: MinIO settings
 
+### 5. **Database Service** (`database_service.py`)
+- **Purpose**: Store client interview data in PostgreSQL
+- **Features**:
+  - Client interview record creation
+  - MinIO URL linking
+  - Interview statistics and reporting
+  - CRUD operations for interviews
+  - Connection pooling and error handling
+- **Configuration**: PostgreSQL settings
+
 ## 📧 Email Template
 
 The system generates professional emails with:
@@ -307,7 +343,7 @@ curl -H "Authorization: Bearer your-secret-key-here" \
   "timestamp": "2025-07-31T21:56:56.084076",
   "version": "1.0.0",
   "dependencies": {
-    "database": "connected",
+    "database": "configured",
     "redis": "connected",
     "elevenlabs": "connected",
     "openai": "configured",
@@ -357,9 +393,10 @@ Check logs for troubleshooting and monitoring.
 1. **analyzing**: Conversation received, OpenAI analysis in progress
 2. **generating_report**: Analysis complete, generating PDF report
 3. **uploading_files**: Report generated, uploading to MinIO storage
-4. **sending_email**: Files uploaded, sending email
-5. **completed**: Process finished, email sent successfully
-6. **failed**: Error occurred during processing
+4. **storing_database**: Files uploaded, storing in database
+5. **sending_email**: Database stored, sending email
+6. **completed**: Process finished, email sent successfully
+7. **failed**: Error occurred during processing
 
 ## 📞 Support
 
