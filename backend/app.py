@@ -17,6 +17,7 @@ from services.openai_service import OpenAIService, ConversationSummary
 from services.pdf_service import PDFService
 from services.email_service import EmailService
 from services.minio_service import MinIOService
+from services.database_service import DatabaseService, ClientInterviewCreate
 
 # Load environment variables from .env file
 load_dotenv()
@@ -136,6 +137,7 @@ openai_service = None
 pdf_service = None
 email_service = None
 minio_service = None
+database_service = None
 
 def get_openai_service():
     global openai_service
@@ -160,6 +162,12 @@ def get_minio_service():
     if minio_service is None:
         minio_service = MinIOService()
     return minio_service
+
+def get_database_service():
+    global database_service
+    if database_service is None:
+        database_service = DatabaseService()
+    return database_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -351,6 +359,27 @@ async def process_conversation_async(data: ConversationEndData):
             logger.info(f"Successfully uploaded files to MinIO for conversation {data.conversationId}")
             logger.info(f"Transcript URL: {transcript_upload.file_url}")
             logger.info(f"PDF URL: {pdf_upload.file_url}")
+            
+            # Step 3.6: Store client interview in database
+            logger.info(f"Storing client interview in database for conversation {data.conversationId}")
+            db_svc = get_database_service()
+            
+            interview_data = ClientInterviewCreate(
+                conversation_id=data.conversationId,
+                officer_name="Neha",  # AI Agent name
+                officer_email=data.emailId,
+                client_account_id=data.accountId,
+                minio_audio_url=None,  # Audio not available in current implementation
+                minio_transcript_url=transcript_upload.file_url,
+                minio_report_url=pdf_upload.file_url,
+                status="completed"
+            )
+            
+            db_interview = await db_svc.create_client_interview(interview_data)
+            if db_interview:
+                logger.info(f"Successfully stored client interview in database: {data.conversationId}")
+            else:
+                logger.error(f"Failed to store client interview in database: {data.conversationId}")
         else:
             logger.error(f"Failed to upload files to MinIO for conversation {data.conversationId}")
             logger.error(f"Transcript upload error: {transcript_upload.error}")
@@ -520,6 +549,16 @@ async def get_minio_config(
     minio_svc = get_minio_service()
     return minio_svc.get_config_status()
 
+@app.get("/api/v1/config/database")
+async def get_database_config(
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get database configuration status
+    """
+    db_svc = get_database_service()
+    return db_svc.get_config_status()
+
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health_check():
     """
@@ -530,7 +569,7 @@ async def health_check():
         timestamp=datetime.utcnow().isoformat(),
         version="1.0.0",
         dependencies={
-            "database": "connected",
+            "database": "configured" if get_database_service().engine is not None else "not_configured",
             "redis": "connected",
             "elevenlabs": "connected",
             "openai": "configured" if os.getenv("OPENAI_API_KEY") else "not_configured",
@@ -538,6 +577,100 @@ async def health_check():
             "minio": "not_configured"  # MinIO not available in current environment
         }
     )
+
+@app.get("/api/v1/interviews")
+async def list_interviews(
+    officer_email: Optional[str] = None,
+    client_account_id: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    List client interviews with optional filters
+    """
+    try:
+        db_svc = get_database_service()
+        interviews = await db_svc.list_client_interviews(
+            officer_email=officer_email,
+            client_account_id=client_account_id,
+            status=status,
+            limit=limit,
+            offset=offset
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "interviews": [interview.dict() for interview in interviews],
+                "pagination": {
+                    "limit": limit,
+                    "offset": offset,
+                    "total": len(interviews)
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error listing interviews: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error listing interviews: {str(e)}"
+        )
+
+@app.get("/api/v1/interviews/{conversation_id}")
+async def get_interview(
+    conversation_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get client interview by conversation ID
+    """
+    try:
+        db_svc = get_database_service()
+        interview = await db_svc.get_client_interview(conversation_id)
+        
+        if not interview:
+            raise HTTPException(
+                status_code=404,
+                detail="Interview not found"
+            )
+        
+        return {
+            "success": True,
+            "data": interview.dict()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting interview: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting interview: {str(e)}"
+        )
+
+@app.get("/api/v1/interviews/statistics")
+async def get_interview_statistics(
+    officer_email: Optional[str] = None,
+    api_key: str = Depends(verify_api_key)
+):
+    """
+    Get interview statistics
+    """
+    try:
+        db_svc = get_database_service()
+        stats = await db_svc.get_interview_statistics(officer_email=officer_email)
+        
+        return {
+            "success": True,
+            "data": stats
+        }
+    except Exception as e:
+        logger.error(f"Error getting statistics: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting statistics: {str(e)}"
+        )
 
 @app.get("/")
 async def root():
