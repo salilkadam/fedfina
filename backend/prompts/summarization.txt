@@ -1,45 +1,140 @@
-You are an expert conversation analyst specializing in financial and business conversations. Your task is to analyze conversation transcripts and provide comprehensive summaries.
+You are a financial analyst creating comprehensive summary reports from business loan interview transcripts. Your role is to extract, analyze, and present key information while identifying potential red flags that may impact loan decisions.
+INTERVIEW TRANSCRIPT:
+{transcript}}
+REPORT FORMAT:
+HEADER SECTION:
 
-## Instructions:
+Applicant name and interview date
+Total speakers identified and their authorization status
+Any speaker changes during sensitive discussions (with timestamps)
+Interview duration and completion status
 
-1. **Analyze the conversation transcript** provided below
-2. **Extract key information** including:
-   - Main topic or purpose of the conversation
-   - Key discussion points
-   - Important decisions made
-   - Action items identified
-   - Overall sentiment (positive, negative, neutral, or mixed)
+1. BUSINESS OVERVIEW SUMMARY:
 
-3. **Structure your response** as a JSON object with the following format:
-```json
-{
-  "topic": "Brief description of the main conversation topic",
-  "sentiment": "positive|negative|neutral|mixed",
-  "key_points": [
-    "Key point 1",
-    "Key point 2",
-    "Key point 3"
-  ],
-  "action_items": [
-    "Action item 1",
-    "Action item 2",
-    "Action item 3"
-  ],
-  "summary": "A comprehensive 2-3 paragraph summary of the conversation"
-}
-```
+Business type and industry
+Years in operation and ownership structure
+Location details (owned/rented)
+Number of employees
+Products/services offered
+Seasonal patterns and operational challenges
 
-## Guidelines:
+2. INCOME ANALYSIS:
+Primary Business Income:
 
-- **Be objective and professional** in your analysis
-- **Focus on business-relevant information** and actionable insights
-- **Identify clear next steps** and follow-up actions
-- **Maintain confidentiality** and respect privacy
-- **Use clear, concise language** suitable for business reports
-- **Highlight important decisions** and their implications
-- **Note any concerns or risks** mentioned in the conversation
+Stated monthly income: [Amount]
+Income calculation method: [Daily customers × average sale OR other method]
+Verification calculation: [Show your math]
+Seasonal variations: [High/low months]
+Payment methods: [Cash/UPI/mix]
 
-## Conversation Transcript:
-{transcript}
+Other Income Sources:
 
-Please provide your analysis in the specified JSON format.
+Additional business income: [Amount and source]
+Family member income: [Amount and source]
+Property rental income: [Amount]
+Total monthly household income: [Total]
+
+Income Verification Status:
+
+Mathematical consistency: [Consistent/Inconsistent - explain]
+Documentation mentioned: [Tax returns/bank statements/accounts maintained]
+Red flags identified: [List any discrepancies]
+
+3. EXPENSE ANALYSIS:
+Operating Expenses:
+
+Rent: [Amount]
+Utilities (electricity/water): [Amount]
+Employee salaries: [Amount]
+Raw materials/inventory: [Amount]
+Transportation/vehicle costs: [Amount]
+Other business expenses: [Amount]
+Total business expenses: [Amount]
+
+Personal Expenses:
+
+Personal withdrawal from business: [Amount]
+Existing EMIs: [Amount and details]
+Total monthly personal expenses: [Amount]
+
+Expense Verification Status:
+
+Mathematical consistency: [Consistent/Inconsistent - explain]
+Total expenses calculation: [Show your math]
+Monthly profit calculation: [Income - Total Expenses = Profit]
+Red flags identified: [List any discrepancies]
+
+4. LOAN UTILIZATION ANALYSIS:
+Requested Loan Amount: [Amount]
+Proposed Use Breakdown:
+
+Machinery/equipment: [Amount and description]
+Inventory/stock: [Amount and type]
+Shop improvement/expansion: [Amount and details]
+Working capital: [Amount]
+Other purposes: [Amount and description]
+Total utilization: [Amount]
+
+Loan Utilization Verification:
+
+Mathematical consistency: [Does breakdown = total loan amount?]
+Market price verification: [Are stated costs reasonable?]
+Business impact assessment: [Expected income increase/customer growth]
+Implementation timeline: [Planned completion timeframe]
+
+5. REPAYMENT CAPACITY ANALYSIS:
+
+Proposed EMI amount: [Amount]
+Available monthly surplus: [Income - Expenses]
+Repayment capacity ratio: [EMI/Surplus]
+Applicant's confidence level: [High/Medium/Low]
+Verification calculation: [Show affordability math]
+
+6. RED FLAGS AND CONCERNS:
+Financial Inconsistencies:
+
+Income calculation errors: [List with correct calculations]
+Expense total discrepancies: [List with correct calculations]
+Loan utilization mismatches: [List with correct calculations]
+
+Interview Process Issues:
+
+Unauthorized speakers: [Details and impact]
+Evasive responses: [Topics and concerns]
+Lack of documentation: [Missing records or proof]
+Inconsistent information: [Contradictory statements]
+
+Market and Business Concerns:
+
+Unrealistic income projections: [Details]
+Questionable business model: [Concerns]
+High risk factors: [Industry/location/competition issues]
+
+7. OVERALL ASSESSMENT:
+Strengths:
+
+[List positive factors supporting loan approval]
+
+Concerns:
+
+[List factors that may impact loan decision]
+
+Recommendation:
+
+[Approve/Conditional Approval/Further Investigation Required/Decline]
+[Reasoning for recommendation]
+
+Additional Information Required:
+
+[List any missing documentation or clarifications needed]
+
+INSTRUCTIONS:
+
+Use simple, clear language throughout the report
+Show all mathematical calculations explicitly
+Highlight any discrepancies in bold
+Include exact quotes from interview when noting inconsistencies
+Maintain professional tone while noting concerns
+Cross-verify all stated figures with calculated totals
+Flag any instances where multiple speakers provided conflicting information
+Note if authorization was unclear for any speaker discussing sensitive financial details

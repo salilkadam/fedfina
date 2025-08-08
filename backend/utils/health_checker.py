@@ -15,11 +15,16 @@ import psycopg2
 from minio import Minio
 from minio.error import S3Error
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import settings
 from services.elevenlabs_service import ElevenLabsService
 from services.minio_service import MinIOService
 from services.database_service import DatabaseService
 from services.text_formatter_service import TextFormatterService
+from services.openai_service import OpenAIService
+from services.prompt_service import PromptService
 
 logger = logging.getLogger(__name__)
 
@@ -45,23 +50,8 @@ class HealthChecker:
     async def check_openai_api(self) -> Dict[str, Any]:
         """Check OpenAI API health"""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    "https://api.openai.com/v1/models",
-                    headers={"Authorization": f"Bearer {self.settings.openai_api_key}"},
-                    timeout=5.0
-                )
-                
-                if response.status_code == 200:
-                    return {
-                        "status": "healthy",
-                        "message": "OpenAI API responding correctly"
-                    }
-                else:
-                    return {
-                        "status": "unhealthy",
-                        "message": f"OpenAI API returned {response.status_code}"
-                    }
+            openai_service = OpenAIService(self.settings)
+            return await openai_service.health_check()
         except Exception as e:
             logger.error(f"OpenAI API health check failed: {e}")
             return {
@@ -93,6 +83,18 @@ class HealthChecker:
                 "message": f"Connection failed: {str(e)}"
             }
     
+    async def check_prompt_service(self) -> Dict[str, Any]:
+        """Check prompt service health"""
+        try:
+            prompt_service = PromptService(self.settings)
+            return await prompt_service.health_check()
+        except Exception as e:
+            logger.error(f"Prompt service health check failed: {e}")
+            return {
+                "status": "unhealthy",
+                "message": f"Prompt service error: {str(e)}"
+            }
+
     async def check_email_service(self) -> Dict[str, Any]:
         """Check email service health (SMTP)"""
         try:
@@ -144,15 +146,9 @@ class HealthChecker:
             tasks = [
                 self.check_elevenlabs_api(),
                 self.check_openai_api(),
-                self.check_email_service()
-            ]
-            
-            # Run all health checks concurrently
-            tasks = [
-                self.check_elevenlabs_api(),
-                self.check_openai_api(),
                 self.check_minio_storage(),
                 self.check_database(),
+                self.check_prompt_service(),
                 self.check_email_service()
             ]
             
@@ -177,9 +173,13 @@ class HealthChecker:
                     "status": "unhealthy",
                     "message": f"Check failed: {str(async_results[3])}"
                 },
-                "email_service": async_results[4] if not isinstance(async_results[4], Exception) else {
+                "prompt_service": async_results[4] if not isinstance(async_results[4], Exception) else {
                     "status": "unhealthy",
                     "message": f"Check failed: {str(async_results[4])}"
+                },
+                "email_service": async_results[5] if not isinstance(async_results[5], Exception) else {
+                    "status": "unhealthy",
+                    "message": f"Check failed: {str(async_results[5])}"
                 }
             }
             
@@ -208,6 +208,7 @@ class HealthChecker:
                     "openai_api": {"status": "unknown", "message": "Health check failed"},
                     "minio_storage": {"status": "unknown", "message": "Health check failed"},
                     "database": {"status": "unknown", "message": "Health check failed"},
+                    "prompt_service": {"status": "unknown", "message": "Health check failed"},
                     "email_service": {"status": "unknown", "message": "Health check failed"}
                 },
                 "metrics": {
@@ -217,3 +218,33 @@ class HealthChecker:
                     "average_processing_time": "0s"
                 }
             }
+
+
+async def main():
+    """Main function to run health checks"""
+    checker = HealthChecker()
+    result = await checker.check_all_services()
+    
+    print("🏥 Health Check Results")
+    print("=" * 60)
+    print(f"Overall Status: {result['status']}")
+    print(f"Timestamp: {result['timestamp']}")
+    print(f"Version: {result['version']}")
+    print()
+    
+    print("📊 Dependencies:")
+    for service, status in result['dependencies'].items():
+        status_icon = "✅" if status['status'] == 'healthy' else "❌"
+        print(f"  {status_icon} {service}: {status['status']} - {status['message']}")
+    
+    print()
+    print("📈 Metrics:")
+    metrics = result['metrics']
+    print(f"  Active Jobs: {metrics.get('active_jobs', 0)}")
+    print(f"  Completed Today: {metrics.get('completed_today', 0)}")
+    print(f"  Failed Today: {metrics.get('failed_today', 0)}")
+    print(f"  Average Processing Time: {metrics.get('average_processing_time', '0s')}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
