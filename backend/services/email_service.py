@@ -71,8 +71,8 @@ class EmailService:
             # Send email
             async with aiosmtplib.SMTP(
                 hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=self.smtp_use_tls,
+                port=465,  # Use SSL port 465 for Gmail
+                use_tls=True,  # Direct SSL connection
                 timeout=30.0
             ) as smtp:
                 await smtp.connect()
@@ -221,8 +221,8 @@ class EmailService:
             # Send email
             async with aiosmtplib.SMTP(
                 hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=self.smtp_use_tls,
+                port=465,  # Use SSL port 465 for Gmail
+                use_tls=True,  # Direct SSL connection
                 timeout=30.0
             ) as smtp:
                 await smtp.connect()
@@ -253,8 +253,8 @@ class EmailService:
         try:
             async with aiosmtplib.SMTP(
                 hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=self.smtp_use_tls,
+                port=465,  # Use SSL port 465 for Gmail
+                use_tls=True,  # Direct SSL connection
                 timeout=10.0
             ) as smtp:
                 await smtp.connect()

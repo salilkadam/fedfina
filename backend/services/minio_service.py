@@ -2,6 +2,7 @@
 MinIO Service for file storage operations
 """
 import logging
+import io
 from typing import Dict, Any, Optional, BinaryIO
 from minio import Minio
 from minio.error import S3Error
@@ -41,11 +42,14 @@ class MinIOService:
             # Create object name with folder structure
             object_name = f"{account_id}/audio/{conversation_id}.{file_extension}"
             
+            # Create BytesIO object from audio data
+            audio_stream = io.BytesIO(audio_data)
+            
             # Upload file to MinIO
             result = self.client.put_object(
                 bucket_name=self.bucket_name,
                 object_name=object_name,
-                data=audio_data,
+                data=audio_stream,
                 length=len(audio_data),
                 content_type="audio/mpeg"
             )
@@ -93,11 +97,14 @@ class MinIOService:
             # Convert transcript to bytes
             transcript_bytes = transcript.encode('utf-8')
             
+            # Create BytesIO object from transcript data
+            transcript_stream = io.BytesIO(transcript_bytes)
+            
             # Upload file to MinIO
             result = self.client.put_object(
                 bucket_name=self.bucket_name,
                 object_name=object_name,
-                data=transcript_bytes,
+                data=transcript_stream,
                 length=len(transcript_bytes),
                 content_type="text/plain"
             )
@@ -142,11 +149,14 @@ class MinIOService:
             # Create object name with folder structure
             object_name = f"{account_id}/reports/{conversation_id}.pdf"
             
+            # Create BytesIO object from PDF data
+            pdf_stream = io.BytesIO(pdf_data)
+            
             # Upload file to MinIO
             result = self.client.put_object(
                 bucket_name=self.bucket_name,
                 object_name=object_name,
-                data=pdf_data,
+                data=pdf_stream,
                 length=len(pdf_data),
                 content_type="application/pdf"
             )
