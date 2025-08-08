@@ -16,6 +16,10 @@ from minio import Minio
 from minio.error import S3Error
 
 from config import settings
+from services.elevenlabs_service import ElevenLabsService
+from services.minio_service import MinIOService
+from services.database_service import DatabaseService
+from services.text_formatter_service import TextFormatterService
 
 logger = logging.getLogger(__name__)
 
@@ -29,23 +33,8 @@ class HealthChecker:
     async def check_elevenlabs_api(self) -> Dict[str, Any]:
         """Check ElevenLabs API health"""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{self.settings.elevenlabs_base_url}/voices",
-                    headers={"xi-api-key": self.settings.elevenlabs_api_key},
-                    timeout=5.0
-                )
-                
-                if response.status_code == 200:
-                    return {
-                        "status": "healthy",
-                        "message": "ElevenLabs API responding correctly"
-                    }
-                else:
-                    return {
-                        "status": "unhealthy",
-                        "message": f"ElevenLabs API returned {response.status_code}"
-                    }
+            elevenlabs_service = ElevenLabsService(self.settings)
+            return await elevenlabs_service.health_check()
         except Exception as e:
             logger.error(f"ElevenLabs API health check failed: {e}")
             return {
@@ -80,30 +69,11 @@ class HealthChecker:
                 "message": f"Connection failed: {str(e)}"
             }
     
-    def check_minio_storage(self) -> Dict[str, Any]:
+    async def check_minio_storage(self) -> Dict[str, Any]:
         """Check MinIO storage health"""
         try:
-            minio_client = Minio(
-                self.settings.minio_endpoint,
-                access_key=self.settings.minio_access_key,
-                secret_key=self.settings.minio_secret_key,
-                secure=self.settings.minio_secure
-            )
-            
-            # Test bucket access
-            buckets = minio_client.list_buckets()
-            bucket_names = [bucket.name for bucket in buckets]
-            
-            if self.settings.minio_bucket_name in bucket_names:
-                return {
-                    "status": "healthy",
-                    "message": f"MinIO bucket '{self.settings.minio_bucket_name}' accessible"
-                }
-            else:
-                return {
-                    "status": "unhealthy",
-                    "message": f"Bucket '{self.settings.minio_bucket_name}' not found"
-                }
+            minio_service = MinIOService(self.settings)
+            return await minio_service.health_check()
         except Exception as e:
             logger.error(f"MinIO health check failed: {e}")
             return {
@@ -111,43 +81,11 @@ class HealthChecker:
                 "message": f"Connection failed: {str(e)}"
             }
     
-    def check_database(self) -> Dict[str, Any]:
+    async def check_database(self) -> Dict[str, Any]:
         """Check PostgreSQL database health"""
         try:
-            # Extract connection details from DATABASE_URL
-            # Format: postgresql://user:password@host:port/database
-            import re
-            match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', self.settings.database_url)
-            
-            if not match:
-                return {
-                    "status": "unhealthy",
-                    "message": "Invalid DATABASE_URL format"
-                }
-            
-            user, password, host, port, database = match.groups()
-            
-            # Test connection
-            conn = psycopg2.connect(
-                host=host,
-                port=port,
-                database=database,
-                user=user,
-                password=password
-            )
-            
-            # Test query
-            cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM conversation_processing")
-            count = cursor.fetchone()[0]
-            
-            cursor.close()
-            conn.close()
-            
-            return {
-                "status": "healthy",
-                "message": f"Database connected, {count} processing jobs found"
-            }
+            database_service = DatabaseService(self.settings)
+            return await database_service.health_check()
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
             return {
@@ -188,62 +126,8 @@ class HealthChecker:
     async def get_processing_metrics(self) -> Dict[str, Any]:
         """Get processing metrics from database"""
         try:
-            import re
-            match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', self.settings.database_url)
-            
-            if not match:
-                return {
-                    "active_jobs": 0,
-                    "completed_today": 0,
-                    "failed_today": 0,
-                    "average_processing_time": "0s"
-                }
-            
-            user, password, host, port, database = match.groups()
-            
-            conn = psycopg2.connect(
-                host=host,
-                port=port,
-                database=database,
-                user=user,
-                password=password
-            )
-            
-            cursor = conn.cursor()
-            
-            # Active jobs
-            cursor.execute("SELECT COUNT(*) FROM conversation_processing WHERE status IN ('pending', 'extracting', 'storing', 'summarizing', 'generating_report', 'sending_email')")
-            active_jobs = cursor.fetchone()[0]
-            
-            # Completed today
-            cursor.execute("SELECT COUNT(*) FROM conversation_processing WHERE status = 'completed' AND DATE(created_at) = CURRENT_DATE")
-            completed_today = cursor.fetchone()[0]
-            
-            # Failed today
-            cursor.execute("SELECT COUNT(*) FROM conversation_processing WHERE status = 'failed' AND DATE(created_at) = CURRENT_DATE")
-            failed_today = cursor.fetchone()[0]
-            
-            # Average processing time
-            cursor.execute("""
-                SELECT AVG(EXTRACT(EPOCH FROM (processing_completed_at - processing_started_at)))
-                FROM conversation_processing 
-                WHERE status = 'completed' 
-                AND processing_completed_at IS NOT NULL 
-                AND processing_started_at IS NOT NULL
-            """)
-            avg_time = cursor.fetchone()[0]
-            
-            cursor.close()
-            conn.close()
-            
-            avg_time_str = f"{int(avg_time or 0)}s" if avg_time else "0s"
-            
-            return {
-                "active_jobs": active_jobs,
-                "completed_today": completed_today,
-                "failed_today": failed_today,
-                "average_processing_time": avg_time_str
-            }
+            database_service = DatabaseService(self.settings)
+            return await database_service.get_processing_metrics()
         except Exception as e:
             logger.error(f"Failed to get metrics: {e}")
             return {
@@ -263,9 +147,14 @@ class HealthChecker:
                 self.check_email_service()
             ]
             
-            # Run sync checks
-            minio_status = self.check_minio_storage()
-            db_status = self.check_database()
+            # Run all health checks concurrently
+            tasks = [
+                self.check_elevenlabs_api(),
+                self.check_openai_api(),
+                self.check_minio_storage(),
+                self.check_database(),
+                self.check_email_service()
+            ]
             
             # Wait for async results
             async_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -280,11 +169,17 @@ class HealthChecker:
                     "status": "unhealthy", 
                     "message": f"Check failed: {str(async_results[1])}"
                 },
-                "minio_storage": minio_status,
-                "database": db_status,
-                "email_service": async_results[2] if not isinstance(async_results[2], Exception) else {
+                "minio_storage": async_results[2] if not isinstance(async_results[2], Exception) else {
                     "status": "unhealthy",
                     "message": f"Check failed: {str(async_results[2])}"
+                },
+                "database": async_results[3] if not isinstance(async_results[3], Exception) else {
+                    "status": "unhealthy",
+                    "message": f"Check failed: {str(async_results[3])}"
+                },
+                "email_service": async_results[4] if not isinstance(async_results[4], Exception) else {
+                    "status": "unhealthy",
+                    "message": f"Check failed: {str(async_results[4])}"
                 }
             }
             
