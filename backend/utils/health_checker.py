@@ -25,6 +25,8 @@ from services.database_service import DatabaseService
 from services.text_formatter_service import TextFormatterService
 from services.openai_service import OpenAIService
 from services.prompt_service import PromptService
+from services.pdf_service import PDFService
+from services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +97,18 @@ class HealthChecker:
                 "message": f"Prompt service error: {str(e)}"
             }
 
+    async def check_pdf_service(self) -> Dict[str, Any]:
+        """Check PDF service health"""
+        try:
+            pdf_service = PDFService(self.settings)
+            return await pdf_service.health_check()
+        except Exception as e:
+            logger.error(f"PDF service health check failed: {e}")
+            return {
+                "status": "unhealthy",
+                "message": f"PDF service error: {str(e)}"
+            }
+
     async def check_email_service(self) -> Dict[str, Any]:
         """Check email service health (SMTP)"""
         try:
@@ -149,6 +163,7 @@ class HealthChecker:
                 self.check_minio_storage(),
                 self.check_database(),
                 self.check_prompt_service(),
+                self.check_pdf_service(),
                 self.check_email_service()
             ]
             
@@ -177,9 +192,13 @@ class HealthChecker:
                     "status": "unhealthy",
                     "message": f"Check failed: {str(async_results[4])}"
                 },
-                "email_service": async_results[5] if not isinstance(async_results[5], Exception) else {
+                "pdf_service": async_results[5] if not isinstance(async_results[5], Exception) else {
                     "status": "unhealthy",
                     "message": f"Check failed: {str(async_results[5])}"
+                },
+                "email_service": async_results[6] if not isinstance(async_results[6], Exception) else {
+                    "status": "unhealthy",
+                    "message": f"Check failed: {str(async_results[6])}"
                 }
             }
             
@@ -209,6 +228,7 @@ class HealthChecker:
                     "minio_storage": {"status": "unknown", "message": "Health check failed"},
                     "database": {"status": "unknown", "message": "Health check failed"},
                     "prompt_service": {"status": "unknown", "message": "Health check failed"},
+                    "pdf_service": {"status": "unknown", "message": "Health check failed"},
                     "email_service": {"status": "unknown", "message": "Health check failed"}
                 },
                 "metrics": {
