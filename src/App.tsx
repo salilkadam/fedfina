@@ -239,7 +239,7 @@ function App() {
               Please wait while we initialize the conversation widget
             </div>
             <div style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
-              Debug: Script loaded: {scriptLoadedRef.current ? 'Yes' : 'No'} | 
+              Debug: Script loaded: {scriptLoadedRef.current ? 'Yes' : 'No'} |
               Widget ready: {widgetReady ? 'Yes' : 'No'}
             </div>
             <div style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
