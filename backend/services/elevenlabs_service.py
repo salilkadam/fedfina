@@ -33,8 +33,8 @@ class ElevenLabsService:
         """
         try:
             async with httpx.AsyncClient() as client:
-                # Get conversation details
-                conversation_url = f"{self.base_url}/conversations/{conversation_id}"
+                # Get conversation details using the correct endpoint
+                conversation_url = f"{self.base_url}/convai/conversations/{conversation_id}"
                 response = await client.get(conversation_url, headers=self.headers)
                 response.raise_for_status()
                 
@@ -78,16 +78,15 @@ class ElevenLabsService:
             Plain text transcript in format "AI: message\nUser: message"
         """
         try:
-            # Navigate through the conversation data structure
-            # This will need to be adjusted based on actual ElevenLabs API response format
-            messages = conversation_data.get("messages", [])
+            # Extract transcript from the conversation data
+            transcript_messages = conversation_data.get("transcript", [])
             
             transcript_lines = []
-            for message in messages:
+            for message in transcript_messages:
                 role = message.get("role", "unknown")
-                content = message.get("content", "")
+                content = message.get("message", "")
                 
-                if role.lower() == "assistant":
+                if role.lower() == "agent":
                     transcript_lines.append(f"AI: {content}")
                 elif role.lower() == "user":
                     transcript_lines.append(f"User: {content}")
