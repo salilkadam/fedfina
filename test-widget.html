@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElevenLabs Widget Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        .widget-container {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .loading {
+            background-color: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+        }
+
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+
+        .success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>ElevenLabs Convai Widget Test</h1>
+
+        <div id="status" class="status loading">
+            🔄 Loading ElevenLabs widget script...
+        </div>
+
+        <div class="widget-container">
+            <elevenlabs-convai agent-id="agent_01jxn7fwb2eyq8p6k4m3en4xtm" style="width: 100%; height: 500px;">
+            </elevenlabs-convai>
+        </div>
+    </div>
+
+    <script>
+        // Prevent multiple script loads
+        let scriptLoaded = false;
+
+        // Load ElevenLabs widget script
+        const loadWidget = () => {
+            // Check if already loaded
+            if (scriptLoaded) {
+                return;
+            }
+
+            // Check if custom element is already registered
+            if (window.customElements && window.customElements.get('elevenlabs-convai')) {
+                updateStatus('success', '✅ ElevenLabs widget already loaded!');
+                scriptLoaded = true;
+                return;
+            }
+
+            // Check if script is already in the document
+            if (document.querySelector('script[src*="elevenlabs/convai-widget-embed"]')) {
+                // Script is already loading, just wait for it
+                const checkWidget = () => {
+                    if (window.customElements && window.customElements.get('elevenlabs-convai')) {
+                        updateStatus('success', '✅ ElevenLabs widget loaded successfully!');
+                        scriptLoaded = true;
+                    } else {
+                        setTimeout(checkWidget, 500);
+                    }
+                };
+                checkWidget();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed@latest/dist/index.js';
+            script.async = true;
+
+            script.onload = () => {
+                console.log('✅ ElevenLabs widget script loaded successfully');
+                scriptLoaded = true;
+                updateStatus('success', '✅ ElevenLabs widget loaded successfully!');
+            };
+
+            script.onerror = (error) => {
+                console.error('❌ Failed to load ElevenLabs widget script:', error);
+                scriptLoaded = false;
+                updateStatus('error', '❌ Failed to load ElevenLabs widget script. Please check your internet connection.');
+            };
+
+            document.head.appendChild(script);
+        };
+
+        const updateStatus = (type, message) => {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        };
+
+        // Load widget when page loads
+        loadWidget();
+    </script>
+</body>
+
+</html>
