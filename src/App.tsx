@@ -4,7 +4,7 @@ import './App.css';
 function App() {
   const [widgetReady, setWidgetReady] = useState(false);
   const scriptLoadedRef = useRef(false);
-  const [urlParams, setUrlParams] = useState<{email_id?: string, account_id?: string}>({});
+  const [urlParams, setUrlParams] = useState<{ email_id?: string, account_id?: string }>({});
 
   useEffect(() => {
     // Extract URL parameters on component mount
@@ -61,9 +61,24 @@ function App() {
           scriptLoadedRef.current = true;
           // Wait a bit for the custom element to register
           setTimeout(() => {
-            setWidgetReady(true);
-            // Set up event listeners for the widget
-            setupWidgetEventListeners();
+            if (window.customElements && window.customElements.get('elevenlabs-convai')) {
+              console.log('✅ ElevenLabs widget custom element registered');
+              setWidgetReady(true);
+              // Set up event listeners for the widget
+              setupWidgetEventListeners();
+            } else {
+              console.error('❌ ElevenLabs widget custom element not found after script load');
+              // Try again after another delay
+              setTimeout(() => {
+                if (window.customElements && window.customElements.get('elevenlabs-convai')) {
+                  console.log('✅ ElevenLabs widget custom element registered (second attempt)');
+                  setWidgetReady(true);
+                  setupWidgetEventListeners();
+                } else {
+                  console.error('❌ ElevenLabs widget failed to register after multiple attempts');
+                }
+              }, 2000);
+            }
           }, 1000);
         };
 
@@ -87,21 +102,21 @@ function App() {
       // Reset the ref when component unmounts
       scriptLoadedRef.current = false;
     };
-  }, [urlParams]);
+  }, []); // Empty dependency array - run only once on mount
 
   // Function to set up widget event listeners
   const setupWidgetEventListeners = () => {
     console.log('🎧 Setting up widget event listeners...');
-    
+
     // Listen for conversation end events from the ElevenLabs widget
     window.addEventListener('message', (event) => {
       console.log('📨 Received message:', event.data);
-      
+
       // Check if this is from the ElevenLabs widget
       if (event.data && event.data.type === 'elevenlabs-conversation-end') {
         const conversationId = event.data.conversationId;
         console.log('🎯 Conversation ended:', conversationId);
-        
+
         // Trigger postprocess API call
         handleConversationEnd(conversationId);
       }
@@ -111,7 +126,7 @@ function App() {
   // Function to handle conversation end and call postprocess API
   const handleConversationEnd = async (conversationId: string) => {
     console.log('🚀 Handling conversation end:', conversationId);
-    
+
     // Check if we have the required parameters
     if (!urlParams.email_id || !urlParams.account_id) {
       console.error('❌ Missing required parameters for postprocess API');
@@ -121,7 +136,7 @@ function App() {
 
     try {
       console.log('📤 Calling postprocess API...');
-      
+
       const response = await fetch('http://localhost:8000/api/v1/postprocess/conversation', {
         method: 'POST',
         headers: {
@@ -139,7 +154,7 @@ function App() {
       if (response.ok) {
         const result = await response.json();
         console.log('✅ Postprocess API success:', result);
-        
+
         // Show success message to user
         alert(`✅ Conversation processed successfully!\n📧 Report sent to: ${urlParams.email_id}\n⏱️ Processing time: ${result.processing_time?.toFixed(1)}s`);
       } else {
@@ -184,7 +199,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>AI Conversation Widget</h1>
-        
+
         {/* Display URL Parameters */}
         <div style={{
           fontSize: '14px',
@@ -197,11 +212,11 @@ function App() {
         }}>
           <strong>Current Parameters:</strong>
           <br />
-          📧 Email ID: {urlParams.email_id || <span style={{color: '#dc3545'}}>Not provided</span>}
+          📧 Email ID: {urlParams.email_id || <span style={{ color: '#dc3545' }}>Not provided</span>}
           <br />
-          👤 Account ID: {urlParams.account_id || <span style={{color: '#dc3545'}}>Not provided</span>}
+          👤 Account ID: {urlParams.account_id || <span style={{ color: '#dc3545' }}>Not provided</span>}
           <br />
-          <small style={{color: '#6c757d', marginTop: '5px', display: 'block'}}>
+          <small style={{ color: '#6c757d', marginTop: '5px', display: 'block' }}>
             💡 Use URL format: ?email_id=your@email.com&account_id=your_account
           </small>
         </div>
@@ -223,6 +238,51 @@ function App() {
             <div style={{ fontSize: '14px', color: '#666' }}>
               Please wait while we initialize the conversation widget
             </div>
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
+              Debug: Script loaded: {scriptLoadedRef.current ? 'Yes' : 'No'} | 
+              Widget ready: {widgetReady ? 'Yes' : 'No'}
+            </div>
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '5px' }}>
+              Check browser console (F12) for detailed loading information
+            </div>
+            <button
+              onClick={() => {
+                console.log('🔄 Manual widget reload triggered');
+                scriptLoadedRef.current = false;
+                setWidgetReady(false);
+                const loadWidget = () => {
+                  const script = document.createElement('script');
+                  script.src = 'https://unpkg.com/@elevenlabs/convai-widget-embed@latest/dist/index.js';
+                  script.async = true;
+                  script.onload = () => {
+                    console.log('✅ Manual reload: ElevenLabs widget script loaded');
+                    setTimeout(() => {
+                      if (window.customElements && window.customElements.get('elevenlabs-convai')) {
+                        console.log('✅ Manual reload: Widget ready');
+                        setWidgetReady(true);
+                        setupWidgetEventListeners();
+                      } else {
+                        console.error('❌ Manual reload: Widget still not ready');
+                      }
+                    }, 1000);
+                  };
+                  script.onerror = (error) => console.error('❌ Manual reload failed:', error);
+                  document.head.appendChild(script);
+                };
+                loadWidget();
+              }}
+              style={{
+                marginTop: '15px',
+                padding: '8px 16px',
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Retry Widget Load
+            </button>
           </div>
         ) : (
           <div style={{ margin: '20px' }}>
