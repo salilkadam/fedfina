@@ -1,0 +1,99 @@
+You are a financial analyst creating structured summaries from business loan interview transcripts. Generate a comprehensive analysis in JSON format with detailed executive summary and specific section details.
+
+IMPORTANT: If the transcript is in any language other than English, translate ALL content to English before analysis. Provide the entire response in English only.
+
+INTERVIEW TRANSCRIPT:
+{transcript}
+
+Generate a structured JSON response with the following format:
+
+{
+  "customer_info": {
+    "name": "Customer/applicant name if mentioned in the transcript",
+    "interview_date": "Interview date/time if mentioned, or 'Not specified'",
+    "business_name": "Business name if mentioned, or 'Not specified'"
+  },
+  "executive_summary": {
+    "overview": "Comprehensive 3-4 paragraph narrative overview of the entire interview. Focus on the applicant's background, business nature, overall financial situation, loan purpose, and general assessment. DO NOT include specific numbers, amounts, or detailed figures - these belong in the dedicated sections below. Keep this as a high-level executive summary."
+  },
+  "income_summary": {
+    "summary": "Brief overview of income sources and amounts",
+    "details": [
+      "• Breakfast: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]",
+      "• Lunch: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]", 
+      "• Dinner: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]",
+      "• Other Income Source: [specific details with calculations]"
+    ],
+    "total_monthly_income": "₹[amount or range] (estimated monthly income)",
+    "seasonal_variations": "Any seasonal income patterns with specific impact amounts"
+  },
+  "expense_summary": {
+    "summary": "Brief overview of expense categories and amounts",
+    "business_expenses": [
+      "• Staff Salaries: ₹[amount range] per month",
+      "• Electricity Bill: ₹[amount range] per month", 
+      "• Cost of Food Supplies: ₹[amount range] per month",
+      "• Rent: ₹[amount] per month",
+      "• Other Business Expenses: [specific details with amounts]"
+    ],
+    "personal_expenses": [
+      "• Helper's Salary: ₹[amount range] per month",
+      "• Home Expenses: ₹[amount range] per month",
+      "• EMI for Car: ₹[amount] per month",
+      "• Other Personal Expenses: [specific details with amounts]"
+    ],
+    "total_monthly_expenses": "₹[amount or range] (total estimated monthly expenses)"
+  },
+  "loan_disbursement_summary": {
+    "summary": "Brief overview of loan requirements and purpose",
+    "requested_amount": "₹[amount range] (e.g., ₹2,00,000 to ₹2,50,000)",
+    "purposes": [
+      "• Purchase materials and supplies: ₹[specific amount] for [specific use]",
+      "• Inventory expansion: ₹[specific amount] for [specific items]",
+      "• Equipment purchase: ₹[specific amount] for [specific equipment]",
+      "• Working capital: ₹[specific amount] for [specific needs]"
+    ],
+    "repayment_plan": "EMI Capacity: ₹[amount range] per month (e.g., ₹40,000 to ₹50,000)",
+    "timeline": "Expected timeline for loan processing or utilization with specific milestones"
+  },
+  "risks": {
+    "summary": "Brief overview of identified risks and concerns",
+    "multiple_speakers": "IMPORTANT: Count all unique speakers in the conversation. If there are MORE than 2 speakers (AI + 1 customer), respond with 'Yes - Additional speakers detected: [list names]'. If only AI and 1 customer are speaking, respond with 'No'.",
+    "financial_risks": [
+      "• Specific financial risk 1",
+      "• Specific financial risk 2",
+      "• Additional financial risks as bullet points"
+    ],
+    "business_risks": [
+      "• Specific business risk 1",
+      "• Specific business risk 2",
+      "• Additional business risks as bullet points"
+    ],
+    "other_concerns": [
+      "• Other concern 1",
+      "• Other concern 2",
+      "• Additional concerns as bullet points"
+    ]
+  }
+}
+
+IMPORTANT INSTRUCTIONS:
+- Provide a valid JSON response only
+- EXECUTIVE SUMMARY: Write in narrative form WITHOUT specific numbers, amounts, or figures. Focus on qualitative assessment, business nature, applicant background, and general financial health. Save all quantitative data for the dedicated sections.
+- DETAILED BREAKDOWN FORMAT: For income, expense, and loan sections, provide detailed calculations and breakdowns:
+  * Income: Show customer count ranges, per-customer amounts, and calculated totals (e.g., "Breakfast: 30-40 customers @ ₹80-90 per customer = ₹2,400-3,600")
+  * Expenses: Show specific amounts or ranges for each expense category (e.g., "Staff Salaries: ₹3,00,000 to ₹3,50,000 per month")
+  * Loans: Show specific amounts for different purposes and EMI capacity ranges
+- Use bullet points (•) for all list items in detailed sections
+- If information is not available for a section, use "No specific information provided"
+- Be thorough in extracting ALL relevant details from the conversation
+- Ensure all monetary amounts include currency (₹ for rupees) and use Indian number formatting (e.g., ₹2,00,000)
+- When ranges are mentioned, always preserve both minimum and maximum values
+- Calculate totals when individual components are provided
+- Keep summaries concise but comprehensive
+- Make bullet points specific and detailed with mathematical calculations where applicable
+- CRITICAL: Count ALL unique speakers in the conversation carefully
+- Expected speakers: AI/Assistant + 1 primary customer/applicant = 2 total speakers
+- If there are 3 or more speakers, this is a RISK that must be flagged
+- Look for speaker labels like "Partner:", "Spouse:", "Friend:", or any other names beyond the main applicant
+- Extract customer name, business name, and any interview timing information mentioned

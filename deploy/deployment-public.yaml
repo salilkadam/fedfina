@@ -1,0 +1,127 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fedfina
+---
+# Backend Deployment (Public)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fedfina-backend-public
+  namespace: fedfina
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fedfina-backend-public
+  template:
+    metadata:
+      labels:
+        app: fedfina-backend-public
+    spec:
+      containers:
+        - name: backend
+          image: docker.io/docker4zerocool/fedfina-backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ENV
+              value: "production"
+            - name: API_SECRET_KEY
+              value: "test-secret-key"
+            - name: DATABASE_URL
+              value: "postgresql://user:password@postgres-service:5432/fedfina"
+            - name: OPENAI_API_KEY
+              value: "test-openai-key"
+            - name: ELEVENLABS_API_KEY
+              value: "test-elevenlabs-key"
+            - name: ELEVENLABS_WEBHOOK_SECRET
+              value: "test-webhook-secret"
+            - name: MINIO_ENDPOINT
+              value: "minio-service:9000"
+            - name: MINIO_ACCESS_KEY
+              value: "minioadmin"
+            - name: MINIO_SECRET_KEY
+              value: "minioadmin"
+            - name: SMTP_SERVER
+              value: "smtp.gmail.com"
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USERNAME
+              value: "test@example.com"
+            - name: SMTP_PASSWORD
+              value: "test-password"
+            - name: SMTP_FROM_EMAIL
+              value: "test@example.com"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+---
+# Frontend Deployment (Public)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fedfina-frontend-public
+  namespace: fedfina
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fedfina-frontend-public
+  template:
+    metadata:
+      labels:
+        app: fedfina-frontend-public
+    spec:
+      containers:
+        - name: frontend
+          image: docker.io/docker4zerocool/fedfina-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REACT_APP_API_URL
+              value: "https://fedfina-s.bionicaisolutions.com/api"
+            - name: REACT_APP_ENV
+              value: "production"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+# Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: fedfina-backend-public
+  namespace: fedfina
+spec:
+  selector:
+    app: fedfina-backend-public
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: fedfina-frontend-public
+  namespace: fedfina
+spec:
+  selector:
+    app: fedfina-frontend-public
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: ClusterIP
+
