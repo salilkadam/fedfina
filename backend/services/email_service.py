@@ -88,7 +88,8 @@ class EmailService:
                     timeout=30.0
                 ) as smtp:
                     await smtp.connect()
-                    await smtp.starttls()
+                    if self.smtp_use_tls:
+                        await smtp.starttls()
                     await smtp.login(self.smtp_username, self.smtp_password)
                     await smtp.send_message(msg)
             
@@ -273,7 +274,8 @@ class EmailService:
                     timeout=30.0
                 ) as smtp:
                     await smtp.connect()
-                    await smtp.starttls()
+                    if self.smtp_use_tls:
+                        await smtp.starttls()
                     await smtp.login(self.smtp_username, self.smtp_password)
                     await smtp.send_message(msg)
             
@@ -299,15 +301,28 @@ class EmailService:
             Dict containing the test result
         """
         try:
-            async with aiosmtplib.SMTP(
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=(self.smtp_port != 465),  # True for TLS (587), False for SSL (465)
-                timeout=10.0
-            ) as smtp:
-                await smtp.connect()
-                await smtp.login(self.smtp_username, self.smtp_password)
-                await smtp.quit()
+            if self.smtp_port == 465:
+                # SSL connection for port 465
+                async with aiosmtplib.SMTP(
+                    hostname=self.smtp_host,
+                    port=self.smtp_port,
+                    use_tls=True,
+                    timeout=10.0
+                ) as smtp:
+                    await smtp.login(self.smtp_username, self.smtp_password)
+                    await smtp.quit()
+            else:
+                # STARTTLS connection for port 587
+                async with aiosmtplib.SMTP(
+                    hostname=self.smtp_host,
+                    port=self.smtp_port,
+                    timeout=10.0
+                ) as smtp:
+                    await smtp.connect()
+                    if self.smtp_use_tls:
+                        await smtp.starttls()
+                    await smtp.login(self.smtp_username, self.smtp_password)
+                    await smtp.quit()
             
             return {
                 "status": "success",
