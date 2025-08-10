@@ -52,6 +52,15 @@ class Risks(BaseModel):
     other_concerns: List[str] = Field(default_factory=list, description="Other concerns with bullet points")
 
 
+class Opportunities(BaseModel):
+    """Opportunity assessment from the interview"""
+    summary: str = Field(..., description="Brief overview of business strengths and positive opportunities")
+    business_strengths: List[str] = Field(default_factory=list, description="Business strengths and positive points with bullet points")
+    market_opportunities: List[str] = Field(default_factory=list, description="Market opportunities with bullet points")
+    competitive_advantages: List[str] = Field(default_factory=list, description="Competitive advantages with bullet points")
+    growth_potential: List[str] = Field(default_factory=list, description="Growth potential areas with bullet points")
+
+
 class OpenAIStructuredResponse(BaseModel):
     """Complete structured response from OpenAI"""
     customer_info: Optional[CustomerInfo] = None
@@ -60,6 +69,7 @@ class OpenAIStructuredResponse(BaseModel):
     expense_summary: Optional[ExpenseSummary] = None
     loan_disbursement_summary: Optional[LoanDisbursementSummary] = None
     risks: Optional[Risks] = None
+    opportunities: Optional[Opportunities] = None
     
     class Config:
         """Pydantic configuration"""

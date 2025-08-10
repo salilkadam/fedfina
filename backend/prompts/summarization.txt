@@ -74,6 +74,33 @@ Generate a structured JSON response with the following format:
       "• Other concern 2",
       "• Additional concerns as bullet points"
     ]
+  },
+  "opportunities": {
+    "summary": "Brief overview of business strengths and positive opportunities identified",
+    "business_strengths": [
+      "• Strong positive point 1 about the business model or operations",
+      "• Strong positive point 2 about market position or customer base",
+      "• Strong positive point 3 about financial management or growth potential",
+      "• Additional business strengths as bullet points"
+    ],
+    "market_opportunities": [
+      "• Market opportunity 1 with growth potential",
+      "• Market opportunity 2 for expansion or diversification",
+      "• Market opportunity 3 for increased profitability",
+      "• Additional market opportunities as bullet points"
+    ],
+    "competitive_advantages": [
+      "• Competitive advantage 1 over other businesses",
+      "• Competitive advantage 2 in terms of location, quality, or service",
+      "• Competitive advantage 3 in terms of experience or relationships",
+      "• Additional competitive advantages as bullet points"
+    ],
+    "growth_potential": [
+      "• Growth opportunity 1 with specific expansion potential",
+      "• Growth opportunity 2 for scaling operations",
+      "• Growth opportunity 3 for new revenue streams",
+      "• Additional growth potential areas as bullet points"
+    ]
   }
 }
 

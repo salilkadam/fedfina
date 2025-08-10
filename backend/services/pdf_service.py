@@ -202,6 +202,12 @@ class PDFService:
             # Add risks section
             story.extend(self._create_risks_section(summary, transcript, parsed_summary))
             
+            # Add opportunities section
+            story.extend(self._create_opportunities_section(summary, transcript, parsed_summary))
+            
+            # Add recommendations section
+            story.extend(self._create_recommendations_section(summary, transcript, parsed_summary))
+            
             # Build the PDF
             doc.build(story)
             
@@ -852,6 +858,15 @@ class PDFService:
                 repayment_plan = "Not specified"
                 multiple_speakers = "No"
             
+            # Extract opportunities information
+            opportunities_summary = "Not specified"
+            if parsed_summary and isinstance(parsed_summary, OpenAIStructuredResponse):
+                if parsed_summary.opportunities and parsed_summary.opportunities.summary:
+                    opportunities_summary = parsed_summary.opportunities.summary
+            elif parsed_summary and isinstance(parsed_summary, dict):
+                opportunities_info = parsed_summary.get('opportunities', {})
+                opportunities_summary = opportunities_info.get('summary', 'Not specified')
+            
             # Build table data
             table_data = [
                 ["Field", "Information"],
@@ -861,6 +876,7 @@ class PDFService:
                 ["Total Monthly Income", total_income],
                 ["Requested Loan Amount", requested_amount],
                 ["Proposed Repayment", repayment_plan],
+                ["Key Opportunities", opportunities_summary[:100] + "..." if len(opportunities_summary) > 100 else opportunities_summary],
                 ["Multiple Speakers Risk", multiple_speakers]
             ]
             
@@ -1032,6 +1048,150 @@ class PDFService:
         elements.append(Spacer(1, 20))
         return elements
 
+    def _create_opportunities_section(self, summary: str, transcript: str, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> List:
+        """Create the opportunities section"""
+        elements = []
+        
+        # Section title
+        title = Paragraph(
+            "Opportunities",
+            self.styles['CustomHeading']
+        )
+        elements.append(title)
+        
+        # Try to use parsed data first (Pydantic model or dict)
+        if parsed_summary:
+            if isinstance(parsed_summary, OpenAIStructuredResponse):
+                opportunities_info = self._extract_opportunities_info_from_pydantic(parsed_summary, transcript)
+            elif isinstance(parsed_summary, dict):
+                opportunities_info = self._extract_opportunities_info_from_json(parsed_summary, transcript)
+            else:
+                opportunities_info = self._extract_opportunities_info(summary, transcript)
+        else:
+            # Fallback to regex extraction
+            opportunities_info = self._extract_opportunities_info(summary, transcript)
+        
+        opportunities_para = Paragraph(
+            opportunities_info,
+            self.styles['CustomBody']
+        )
+        elements.append(opportunities_para)
+        
+        elements.append(Spacer(1, 20))
+        return elements
+
+    def _create_recommendations_section(self, summary: str, transcript: str, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> List:
+        """Create the recommendations section"""
+        elements = []
+        
+        # Section title
+        title = Paragraph(
+            "Recommendations",
+            self.styles['CustomHeading']
+        )
+        elements.append(title)
+        
+        # Generate recommendations based on analysis
+        recommendations = self._generate_recommendations(summary, transcript, parsed_summary)
+        
+        recommendations_para = Paragraph(
+            recommendations,
+            self.styles['CustomBody']
+        )
+        elements.append(recommendations_para)
+        
+        elements.append(Spacer(1, 20))
+        return elements
+
+    def _generate_recommendations(self, summary: str, transcript: str, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> str:
+        """Generate recommendations based on the analysis"""
+        try:
+            recommendations = []
+            
+            # Extract key information for recommendations
+            income_info = None
+            expense_info = None
+            loan_info = None
+            risks_info = None
+            opportunities_info = None
+            
+            if parsed_summary and isinstance(parsed_summary, OpenAIStructuredResponse):
+                income_info = parsed_summary.income_summary
+                expense_info = parsed_summary.expense_summary
+                loan_info = parsed_summary.loan_disbursement_summary
+                risks_info = parsed_summary.risks
+                opportunities_info = parsed_summary.opportunities
+            elif parsed_summary and isinstance(parsed_summary, dict):
+                income_info = parsed_summary.get('income_summary', {})
+                expense_info = parsed_summary.get('expense_summary', {})
+                loan_info = parsed_summary.get('loan_disbursement_summary', {})
+                risks_info = parsed_summary.get('risks', {})
+                opportunities_info = parsed_summary.get('opportunities', {})
+            
+            # Generate loan recommendations
+            if loan_info:
+                requested_amount = None
+                if isinstance(loan_info, dict):
+                    requested_amount = loan_info.get('requested_amount', '')
+                else:
+                    requested_amount = loan_info.requested_amount if loan_info else ''
+                
+                if requested_amount and requested_amount != "No specific information provided":
+                    recommendations.append("<b>Loan Recommendation:</b>")
+                    recommendations.append("• Consider the requested loan amount based on business cash flow analysis")
+                    recommendations.append("• Review repayment capacity against current income and expenses")
+                    recommendations.append("• Assess collateral requirements and risk mitigation strategies")
+            
+            # Generate risk-based recommendations
+            if risks_info:
+                multiple_speakers = None
+                if isinstance(risks_info, dict):
+                    multiple_speakers = risks_info.get('multiple_speakers', 'No')
+                else:
+                    multiple_speakers = risks_info.multiple_speakers if risks_info else 'No'
+                
+                if multiple_speakers and multiple_speakers != "No":
+                    recommendations.append("<b>Verification Recommendations:</b>")
+                    recommendations.append("• Conduct additional verification due to multiple speakers in conversation")
+                    recommendations.append("• Verify primary applicant's identity and business ownership")
+                    recommendations.append("• Cross-reference information provided by all speakers")
+            
+            # Generate opportunity-based recommendations
+            if opportunities_info:
+                if isinstance(opportunities_info, dict):
+                    has_opportunities = opportunities_info.get('summary') and opportunities_info.get('summary') != "No specific information provided"
+                else:
+                    has_opportunities = opportunities_info.summary if opportunities_info else False
+                
+                if has_opportunities:
+                    recommendations.append("<b>Growth Recommendations:</b>")
+                    recommendations.append("• Leverage identified business strengths for loan approval")
+                    recommendations.append("• Consider expansion opportunities in loan utilization plan")
+                    recommendations.append("• Develop strategies to capitalize on market opportunities")
+            
+            # Generate financial recommendations
+            if income_info and expense_info:
+                recommendations.append("<b>Financial Management Recommendations:</b>")
+                recommendations.append("• Maintain detailed financial records for future loan applications")
+                recommendations.append("• Consider diversifying income sources to reduce risk")
+                recommendations.append("• Implement cost control measures to improve profitability")
+            
+            # General recommendations
+            recommendations.append("<b>General Recommendations:</b>")
+            recommendations.append("• Conduct thorough due diligence before loan disbursement")
+            recommendations.append("• Establish clear loan terms and repayment schedules")
+            recommendations.append("• Monitor business performance post-disbursement")
+            recommendations.append("• Provide ongoing support and guidance to the borrower")
+            
+            if recommendations:
+                return "<br/><br/>".join(recommendations)
+            else:
+                return "Recommendations will be generated based on detailed analysis of the conversation."
+                
+        except Exception as e:
+            logger.error(f"Error generating recommendations: {e}")
+            return "Unable to generate specific recommendations at this time."
+
     def _extract_income_info(self, summary: str) -> str:
         """Extract income information from summary"""
         try:
@@ -1182,6 +1342,142 @@ class PDFService:
         except Exception as e:
             logger.error(f"Error extracting risks info: {e}")
             return "Risk information could not be extracted."
+
+    def _extract_opportunities_info_from_pydantic(self, parsed_summary: OpenAIStructuredResponse, transcript: str = "") -> str:
+        """Extract opportunities information from Pydantic model"""
+        try:
+            if not parsed_summary.opportunities:
+                return "Opportunities information not available in the conversation."
+                
+            opportunities = parsed_summary.opportunities
+            
+            # Build opportunities information
+            content_parts = []
+            
+            # Add summary
+            if opportunities.summary and opportunities.summary != "No specific information provided":
+                content_parts.append(f"<b>Overview:</b> {opportunities.summary}")
+            
+            # Add business strengths
+            if opportunities.business_strengths and opportunities.business_strengths != ["No specific information provided"]:
+                content_parts.append("<b>Business Strengths:</b>")
+                for strength in opportunities.business_strengths:
+                    content_parts.append(strength)
+            
+            # Add market opportunities
+            if opportunities.market_opportunities and opportunities.market_opportunities != ["No specific information provided"]:
+                content_parts.append("<b>Market Opportunities:</b>")
+                for opportunity in opportunities.market_opportunities:
+                    content_parts.append(opportunity)
+            
+            # Add competitive advantages
+            if opportunities.competitive_advantages and opportunities.competitive_advantages != ["No specific information provided"]:
+                content_parts.append("<b>Competitive Advantages:</b>")
+                for advantage in opportunities.competitive_advantages:
+                    content_parts.append(advantage)
+            
+            # Add growth potential
+            if opportunities.growth_potential and opportunities.growth_potential != ["No specific information provided"]:
+                content_parts.append("<b>Growth Potential:</b>")
+                for potential in opportunities.growth_potential:
+                    content_parts.append(potential)
+            
+            if content_parts:
+                return "<br/><br/>".join(content_parts)
+            else:
+                return "Opportunities information not clearly specified in the conversation."
+                
+        except Exception as e:
+            logger.error(f"Error extracting opportunities info from Pydantic model: {e}")
+            return "Opportunities information could not be extracted."
+
+    def _extract_opportunities_info_from_json(self, parsed_summary: dict, transcript: str) -> str:
+        """Extract opportunities information from JSON data"""
+        try:
+            opportunities = parsed_summary.get('opportunities', {})
+            
+            # Build opportunities information
+            content_parts = []
+            
+            # Add summary
+            summary = opportunities.get('summary', '')
+            if summary and summary != "No specific information provided":
+                content_parts.append(f"<b>Overview:</b> {summary}")
+            
+            # Add business strengths
+            business_strengths = opportunities.get('business_strengths', [])
+            if business_strengths and business_strengths != ["No specific information provided"]:
+                content_parts.append("<b>Business Strengths:</b>")
+                for strength in business_strengths:
+                    content_parts.append(strength)
+            
+            # Add market opportunities
+            market_opportunities = opportunities.get('market_opportunities', [])
+            if market_opportunities and market_opportunities != ["No specific information provided"]:
+                content_parts.append("<b>Market Opportunities:</b>")
+                for opportunity in market_opportunities:
+                    content_parts.append(opportunity)
+            
+            # Add competitive advantages
+            competitive_advantages = opportunities.get('competitive_advantages', [])
+            if competitive_advantages and competitive_advantages != ["No specific information provided"]:
+                content_parts.append("<b>Competitive Advantages:</b>")
+                for advantage in competitive_advantages:
+                    content_parts.append(advantage)
+            
+            # Add growth potential
+            growth_potential = opportunities.get('growth_potential', [])
+            if growth_potential and growth_potential != ["No specific information provided"]:
+                content_parts.append("<b>Growth Potential:</b>")
+                for potential in growth_potential:
+                    content_parts.append(potential)
+            
+            if content_parts:
+                return "<br/><br/>".join(content_parts)
+            else:
+                return "Opportunities information not clearly specified in the conversation."
+                
+        except Exception as e:
+            logger.error(f"Error extracting opportunities info from JSON: {e}")
+            return "Opportunities information could not be extracted."
+
+    def _extract_opportunities_info(self, summary: str, transcript: str) -> str:
+        """Extract opportunities information from summary and transcript"""
+        try:
+            # Look for the OPPORTUNITIES section
+            import re
+            opportunities_match = re.search(r'OPPORTUNITIES:\s*(.*?)(?=\n\n|\n[A-Z]|$)', summary, re.DOTALL | re.IGNORECASE)
+            
+            if opportunities_match:
+                opportunities_content = opportunities_match.group(1).strip()
+                if opportunities_content and opportunities_content != "No specific information provided":
+                    return opportunities_content
+                else:
+                    return "No specific opportunities identified in the conversation."
+            else:
+                # Fallback to opportunity detection
+                opportunities = []
+                
+                # Look for positive keywords in summary
+                positive_keywords = ['strong', 'good', 'excellent', 'opportunity', 'potential', 'growth', 'advantage', 'strength', 'positive']
+                for keyword in positive_keywords:
+                    if keyword.lower() in summary.lower():
+                        opportunities.append(f"Positive {keyword} identified in conversation")
+                
+                # Check for business strengths mentioned
+                strength_keywords = ['experience', 'location', 'customer', 'quality', 'service', 'reputation']
+                for keyword in strength_keywords:
+                    if keyword.lower() in summary.lower():
+                        opportunities.append(f"Business strength in {keyword} identified")
+                
+                if opportunities:
+                    return "\n".join(opportunities)
+                else:
+                    return "No specific opportunities identified in the conversation."
+            
+        except Exception as e:
+            logger.error(f"Error extracting opportunities info: {e}")
+            return "Opportunities information could not be extracted."
 
     def _create_transcript_section(self, transcript: str) -> List:
         """Create the transcript section"""
