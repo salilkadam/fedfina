@@ -1,25 +1,32 @@
 # FedFina Connection Issues and Fixes
 
-## 🔍 **Validation Results**
+## 🔍 **Actual Connection Test Results**
 
-### ✅ **Working Credentials**:
-- **OpenAI API Key**: ✅ Valid and working
-- **ElevenLabs API Key**: ✅ Valid and working  
-- **SMTP Configuration**: ✅ Valid (Gmail with port 465)
-- **Redis URL**: ✅ Correct format
-- **Base64 Encoding**: ✅ All values properly encoded
+### ✅ **Working Perfectly**:
+- **✅ Database**: Real connection successful to PostgreSQL
+- **✅ MinIO**: Real connection successful to object storage  
+- **✅ OpenAI API**: External API working
+- **✅ ElevenLabs API**: External API working
+- **✅ Service Discovery**: All services discoverable in cluster
 
-### ❌ **Issues Found and Fixed**:
+### ❌ **Issues Found**:
 
-#### 1. **MinIO Endpoint Issue** ✅ FIXED
-- **Problem**: Double dots in endpoint (`minio-hl.minio..cluster.local:9000`)
-- **Fix**: Corrected to `minio-hl.minio.cluster.local:9000`
-- **Action**: Updated in `deploy/secrets-production.yaml` and `deploy/deployment-v2.yaml`
+#### 1. **Redis Connection Issue** ⚠️ NEEDS FIX
+- **Problem**: Redis requires authentication (`NOAUTH Authentication required`)
+- **Current URL**: `redis://redis.redis.cluster.local:6379`
+- **Fix Needed**: Add authentication credentials to Redis URL
+- **Correct Format**: `redis://username:password@redis.redis.cluster.local:6379`
 
-#### 2. **Database Credentials** ⚠️ NEEDS ATTENTION
-- **Problem**: Using placeholder credentials (`user:password`)
-- **Current**: `postgresql://user:password@pg-rw.postgres.cluster.local:5432/fedfina`
-- **Action**: You need to update with actual database credentials
+#### 2. **SMTP Connection Issue** ⚠️ NEEDS ATTENTION
+- **Problem**: External Gmail SMTP not reachable from cluster
+- **Possible Causes**:
+  - Network policies blocking outbound connections
+  - Cluster firewall rules
+  - DNS resolution issues
+- **Fix Options**:
+  - Configure network policies to allow outbound SMTP
+  - Use internal SMTP relay
+  - Configure cluster DNS for external resolution
 
 ## 🔧 **Required Actions**
 
