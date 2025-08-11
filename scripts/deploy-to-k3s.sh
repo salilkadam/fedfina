@@ -47,6 +47,10 @@ kubectl create secret docker-registry docker-registry-secret \
     --namespace=fedfina \
     --dry-run=client -o yaml | kubectl apply -f -
 
+# Apply network policy for SMTP
+echo "🌐 Applying network policy for SMTP..."
+kubectl apply -f deploy/network-policy-smtp.yaml
+
 # Apply deployment
 echo "🚀 Applying deployment..."
 kubectl apply -f deploy/deployment-v2.yaml

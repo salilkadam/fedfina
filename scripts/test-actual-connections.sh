@@ -67,16 +67,19 @@ echo ""
 
 # 2. Test Redis Connection via kubectl
 echo "🔴 Testing ACTUAL Redis Connection..."
-REDIS_HOST=$(echo $REDIS_URL | sed 's/.*:\/\///' | sed 's/:.*//')
-REDIS_PORT=$(echo $REDIS_URL | sed 's/.*://' | sed 's/\/.*//')
+# Parse Redis URL with authentication: redis://:password@host:port
+REDIS_HOST=$(echo $REDIS_URL | sed 's/.*@//' | sed 's/:.*//')
+REDIS_PORT=$(echo $REDIS_URL | sed 's/.*://' | sed 's/.*@.*://' | sed 's/\/.*//')
+REDIS_PASS=$(echo $REDIS_URL | sed 's/.*:\/\///' | sed 's/@.*//' | sed 's/^://')
 
 echo "   Redis Host: $REDIS_HOST"
 echo "   Redis Port: $REDIS_PORT"
+echo "   Redis Password: ${REDIS_PASS:0:10}..."
 
 # Test Redis connection using kubectl run
 echo "   Testing connection..."
 if kubectl run redis-test --image=redis:7-alpine -i --rm --restart=Never -- \
-    redis-cli -h $REDIS_HOST -p $REDIS_PORT ping 2>/dev/null | grep -q "PONG"; then
+    redis-cli -h $REDIS_HOST -p $REDIS_PORT -a "$REDIS_PASS" ping 2>/dev/null | grep -q "PONG"; then
     echo "✅ Redis connection successful!"
 else
     echo "❌ Redis connection failed!"

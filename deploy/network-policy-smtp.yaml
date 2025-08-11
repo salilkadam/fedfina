@@ -1,0 +1,12 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-smtp-outbound
+  namespace: fedfina
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  # Allow all outbound traffic (simpler approach)
+  - {}
