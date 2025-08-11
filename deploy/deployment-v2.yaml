@@ -72,7 +72,10 @@ spec:
                   name: fedfina-secrets
                   key: smtp-server
             - name: SMTP_PORT
-              value: "587"
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: smtp-port
             - name: SMTP_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -88,6 +91,11 @@ spec:
                 secretKeyRef:
                   name: fedfina-secrets
                   key: smtp-from-email
+            - name: SMTP_USE_TLS
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: smtp-use-tls
           resources:
             requests:
               cpu: 200m
