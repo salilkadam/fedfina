@@ -55,7 +55,7 @@ spec:
                   name: fedfina-secrets
                   key: elevenlabs-webhook-secret
             - name: MINIO_ENDPOINT
-              value: "minio-service:9000"
+              value: "minio-hl.minio.cluster.local:9000"
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
@@ -96,6 +96,11 @@ spec:
                 secretKeyRef:
                   name: fedfina-secrets
                   key: smtp-use-tls
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: redis-url
           resources:
             requests:
               cpu: 200m
@@ -225,33 +230,4 @@ spec:
                 name: fedfina-backend
                 port:
                   number: 8000
----
-# MinIO Service (if needed)
-apiVersion: v1
-kind: Service
-metadata:
-  name: minio-service
-  namespace: fedfina
-spec:
-  selector:
-    app: minio
-  ports:
-    - protocol: TCP
-      port: 9000
-      targetPort: 9000
-  type: ClusterIP
----
-# PostgreSQL Service (if needed)
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres-service
-  namespace: fedfina
-spec:
-  selector:
-    app: postgres
-  ports:
-    - protocol: TCP
-      port: 5432
-      targetPort: 5432
-  type: ClusterIP
+

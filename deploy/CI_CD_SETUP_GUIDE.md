@@ -131,9 +131,10 @@ kubectl logs -n fedfina -l app=fedfina-frontend
 - **Backend API**: `http://fedfina-backend.fedfina.svc.cluster.local:8000`
 - **Frontend**: `http://fedfina-frontend.fedfina.svc.cluster.local:3000`
 
-### External Access (if DNS configured)
-- **Frontend**: `http://fedfina-s.bionicaisolutions.com`
-- **API**: `http://fedfina-s.bionicaisolutions.com/api`
+### Internal Cluster Access Only
+- **Frontend**: `http://fedfina-frontend.fedfina.svc.cluster.local:3000`
+- **API**: `http://fedfina-backend.fedfina.svc.cluster.local:8000`
+- **Note**: Cluster is internal-only, no internet access
 
 ## 🔧 Troubleshooting
 
