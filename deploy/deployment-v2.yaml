@@ -55,7 +55,10 @@ spec:
                   name: fedfina-secrets
                   key: elevenlabs-webhook-secret
             - name: MINIO_ENDPOINT
-              value: "minio-hl.minio.cluster.local:9000"
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: minio-endpoint
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
