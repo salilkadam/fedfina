@@ -20,7 +20,7 @@ spec:
         app: fedfina-backend
     spec:
       imagePullSecrets:
-        - name: docker-registry-secret
+        - name: regcred
       containers:
         - name: backend
           image: docker.io/docker4zerocool/fedfina-backend:latest
@@ -141,7 +141,7 @@ spec:
         app: fedfina-frontend
     spec:
       imagePullSecrets:
-        - name: docker-registry-secret
+        - name: regcred
       containers:
         - name: frontend
           image: docker.io/docker4zerocool/fedfina-frontend:latest

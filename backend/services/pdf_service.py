@@ -205,6 +205,9 @@ class PDFService:
             # Add opportunities section
             story.extend(self._create_opportunities_section(summary, transcript, parsed_summary))
             
+            # Add recommendations section
+            story.extend(self._create_recommendations_section(summary, transcript, parsed_summary))
+            
             # Build the PDF
             doc.build(story)
             
