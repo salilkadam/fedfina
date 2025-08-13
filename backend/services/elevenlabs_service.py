@@ -110,10 +110,23 @@ class ElevenLabsService:
             Audio file URL or None if not found
         """
         try:
-            # This will need to be adjusted based on actual ElevenLabs API response format
-            # Look for audio file information in the conversation data
-            audio_info = conversation_data.get("audio", {})
-            return audio_info.get("url")
+            # Check if audio is available
+            has_audio = conversation_data.get("has_audio", False)
+            logger.info(f"Audio availability check: has_audio={has_audio}")
+            
+            if not has_audio:
+                logger.info("No audio available for this conversation")
+                return None
+            
+            # Construct the audio download URL
+            conversation_id = conversation_data.get("conversation_id")
+            if conversation_id:
+                audio_url = f"{self.base_url}/convai/conversations/{conversation_id}/audio"
+                logger.info(f"Generated audio URL: {audio_url}")
+                return audio_url
+            
+            logger.warning("No conversation_id found in conversation data")
+            return None
             
         except Exception as e:
             logger.error(f"Error extracting audio URL: {e}")
@@ -130,9 +143,11 @@ class ElevenLabsService:
             Audio file bytes or None if download failed
         """
         try:
+            logger.info(f"Attempting to download audio from: {audio_url}")
             async with httpx.AsyncClient() as client:
                 response = await client.get(audio_url, headers=self.headers)
                 response.raise_for_status()
+                logger.info(f"Successfully downloaded audio, size: {len(response.content)} bytes")
                 return response.content
                 
         except Exception as e:

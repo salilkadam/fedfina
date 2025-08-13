@@ -221,6 +221,7 @@ async def elevenlabs_webhook(
     """
     import hmac
     import hashlib
+    import time
     
     try:
         # Get the raw body for HMAC verification
@@ -233,42 +234,135 @@ async def elevenlabs_webhook(
             logger.error("Missing ElevenLabs-Signature header")
             raise HTTPException(status_code=401, detail="Missing signature")
         
+        # Parse the signature header (format: t=1234567890,v0=abc123...)
+        try:
+            headers = signature_header.split(',')
+            timestamp_str = None
+            signature = None
+            
+            for header in headers:
+                if header.startswith('t='):
+                    timestamp_str = header[2:]  # Remove 't=' prefix
+                elif header.startswith('v0='):
+                    signature = header  # Keep the full 'v0=...' format
+            
+            if not timestamp_str or not signature:
+                logger.error(f"Invalid signature format: {signature_header}")
+                raise HTTPException(status_code=401, detail="Invalid signature format")
+                
+        except Exception as e:
+            logger.error(f"Error parsing signature header: {e}")
+            raise HTTPException(status_code=401, detail="Invalid signature format")
+        
+        # Validate timestamp (30-minute tolerance)
+        try:
+            req_timestamp = int(timestamp_str) * 1000  # Convert to milliseconds
+            tolerance = int(time.time() * 1000) - (30 * 60 * 1000)  # 30 minutes ago
+            
+            if req_timestamp < tolerance:
+                logger.error(f"Request expired. Timestamp: {req_timestamp}, Tolerance: {tolerance}")
+                raise HTTPException(status_code=403, detail="Request expired")
+                
+        except ValueError as e:
+            logger.error(f"Invalid timestamp format: {timestamp_str}")
+            raise HTTPException(status_code=401, detail="Invalid timestamp")
+        
         # Verify HMAC signature
-        # Get HMAC secret from environment variable
         webhook_secret = os.getenv("ELEVENLABS_WEBHOOK_SECRET")
         if not webhook_secret:
             logger.error("ELEVENLABS_WEBHOOK_SECRET not configured")
             raise HTTPException(status_code=500, detail="Webhook secret not configured")
         
-        # Create expected signature
-        expected_signature = hmac.new(
+        # Create expected signature (format: timestamp.body)
+        message = f"{timestamp_str}.{body_str}"
+        expected_digest = 'v0=' + hmac.new(
             webhook_secret.encode('utf-8'),
-            body_bytes,
+            message.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
         
         # Compare signatures
-        if not hmac.compare_digest(signature_header, expected_signature):
-            logger.error(f"Invalid signature. Expected: {expected_signature}, Received: {signature_header}")
+        if not hmac.compare_digest(signature, expected_digest):
+            logger.error(f"Invalid signature. Expected: {expected_digest}, Received: {signature}")
             raise HTTPException(status_code=401, detail="Invalid signature")
         
         logger.info("✅ HMAC signature verified successfully")
         logger.info(f"Received ElevenLabs webhook: {body}")
         
+        # Debug: Log the full webhook structure
+        logger.info(f"Webhook body keys: {list(body.keys())}")
+        if 'data' in body:
+            logger.info(f"Data keys: {list(body['data'].keys())}")
+            if 'metadata' in body['data']:
+                logger.info(f"Metadata keys: {list(body['data']['metadata'].keys())}")
+        
         # Extract data from ElevenLabs webhook payload
-        conversation_id = body.get('conversation_id')
-        metadata = body.get('metadata', {})
-        dynamic_vars = metadata.get('dynamic_variables', {})
+        # Handle both direct webhook format and nested data format
+        if 'data' in body:
+            # Nested format: {"type": "post_call_transcription", "data": {...}}
+            webhook_data = body.get('data', {})
+            conversation_id = webhook_data.get('conversation_id')
+            metadata = webhook_data.get('metadata', {})
+        else:
+            # Direct format: {"conversation_id": "...", "metadata": {...}}
+            conversation_id = body.get('conversation_id')
+            metadata = body.get('metadata', {})
         
         # Get email_id and account_id from dynamic variables
-        email_id = dynamic_vars.get('email_id')
-        account_id = dynamic_vars.get('account_id')
+        # Check multiple possible locations for dynamic_variables
+        dynamic_vars = {}
+        email_id = None
+        account_id = None
+        
+        # Debug: Log all possible locations
+        logger.info(f"Looking for dynamic_variables in metadata: {metadata}")
+        
+        # First, try direct access in metadata
+        if 'dynamic_variables' in metadata:
+            dynamic_vars = metadata.get('dynamic_variables', {})
+            logger.info(f"Found dynamic_variables in metadata: {dynamic_vars}")
+        # Second, try nested under conversation_initiation_client_data in metadata
+        elif 'conversation_initiation_client_data' in metadata:
+            client_data = metadata.get('conversation_initiation_client_data', {})
+            dynamic_vars = client_data.get('dynamic_variables', {})
+            logger.info(f"Found dynamic_variables in conversation_initiation_client_data (metadata): {dynamic_vars}")
+        # Third, try conversation_initiation_client_data in data section
+        elif 'data' in body and 'conversation_initiation_client_data' in body['data']:
+            client_data = body['data'].get('conversation_initiation_client_data', {})
+            dynamic_vars = client_data.get('dynamic_variables', {})
+            logger.info(f"Found dynamic_variables in conversation_initiation_client_data (data): {dynamic_vars}")
+        # Fourth, try direct access in webhook_data
+        elif 'data' in body and 'dynamic_variables' in body['data']:
+            dynamic_vars = body['data'].get('dynamic_variables', {})
+            logger.info(f"Found dynamic_variables in data: {dynamic_vars}")
+        # Fifth, try looking for email_id and account_id directly in metadata
+        else:
+            logger.info("Checking for email_id and account_id directly in metadata")
+            email_id = metadata.get('email_id') or metadata.get('email')
+            account_id = metadata.get('account_id') or metadata.get('account')
+        
+        # Extract from dynamic_vars if not found directly
+        if not email_id:
+            email_id = dynamic_vars.get('email_id') or dynamic_vars.get('email')
+        if not account_id:
+            account_id = dynamic_vars.get('account_id') or dynamic_vars.get('account')
+        
+        logger.info(f"Extracted email_id: {email_id}, account_id: {account_id}")
         
         if not conversation_id:
             raise HTTPException(status_code=400, detail="Missing conversation_id in webhook")
         
         if not email_id or not account_id:
             logger.warning(f"Missing email_id or account_id in webhook for conversation {conversation_id}")
+            logger.warning(f"Available metadata keys: {list(metadata.keys())}")
+            if 'data' in body:
+                logger.warning(f"Available data keys: {list(body['data'].keys())}")
+                # Check if conversation_initiation_client_data exists in data
+                if 'conversation_initiation_client_data' in body['data']:
+                    client_data = body['data']['conversation_initiation_client_data']
+                    logger.warning(f"conversation_initiation_client_data keys: {list(client_data.keys())}")
+                    if 'dynamic_variables' in client_data:
+                        logger.warning(f"dynamic_variables found: {client_data['dynamic_variables']}")
             # You might want to handle this case differently
         
         # Create postprocess request from webhook data

@@ -24,7 +24,7 @@ Generate a structured JSON response with the following format:
       "• Dinner: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]",
       "• Other Income Source: [specific details with calculations]"
     ],
-    "total_monthly_income": "₹[amount or range] (estimated monthly income)",
+    "total_monthly_income": "₹[amount or range] (calculated as: sum of daily income × 30 days)",
     "seasonal_variations": "Any seasonal income patterns with specific impact amounts"
   },
   "expense_summary": {
@@ -107,8 +107,8 @@ Generate a structured JSON response with the following format:
 IMPORTANT INSTRUCTIONS:
 - Provide a valid JSON response only
 - EXECUTIVE SUMMARY: Write in narrative form WITHOUT specific numbers, amounts, or figures. Focus on qualitative assessment, business nature, applicant background, and general financial health. Save all quantitative data for the dedicated sections.
-- DETAILED BREAKDOWN FORMAT: For income, expense, and loan sections, provide detailed calculations and breakdowns:
-  * Income: Show customer count ranges, per-customer amounts, and calculated totals (e.g., "Breakfast: 30-40 customers @ ₹80-90 per customer = ₹2,400-3,600")
+- DETAILED BREAKDOWN FORMAT: For income, expense, and loan sections, provide detailed breakdowns with accurate calculations:
+  * Income: Show customer count ranges, per-customer amounts, and daily totals (e.g., "Breakfast: 30-40 customers @ ₹80-90 per customer = ₹2,400-3,600")
   * Expenses: Show specific amounts or ranges for each expense category (e.g., "Staff Salaries: ₹3,00,000 to ₹3,50,000 per month")
   * Loans: Show specific amounts for different purposes and EMI capacity ranges
 - Use bullet points (•) for all list items in detailed sections
@@ -116,9 +116,12 @@ IMPORTANT INSTRUCTIONS:
 - Be thorough in extracting ALL relevant details from the conversation
 - Ensure all monetary amounts include currency (₹ for rupees) and use Indian number formatting (e.g., ₹2,00,000)
 - When ranges are mentioned, always preserve both minimum and maximum values
-- Calculate totals when individual components are provided
+- Calculate daily totals for each income source (customer count × per-customer amount)
+- Calculate monthly total as: (sum of all daily income sources) × 30 days
+- EXAMPLE: If daily income is ₹13,900-21,600, then monthly income = ₹13,900×30 to ₹21,600×30 = ₹4,17,000-6,48,000
+- CRITICAL: Do NOT use any other calculation method. The monthly total MUST be calculated as daily total × 30 days.
 - Keep summaries concise but comprehensive
-- Make bullet points specific and detailed with mathematical calculations where applicable
+- Make bullet points specific and detailed with accurate mathematical calculations
 - CRITICAL: Count ALL unique speakers in the conversation carefully
 - Expected speakers: AI/Assistant + 1 primary customer/applicant = 2 total speakers
 - If there are 3 or more speakers, this is a RISK that must be flagged

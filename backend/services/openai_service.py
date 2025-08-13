@@ -267,41 +267,45 @@ class OpenAIService:
 
     async def health_check(self) -> Dict[str, Any]:
         """
-        Check OpenAI API health
+        Check OpenAI API health without making actual API calls
         
         Returns:
             Health status dictionary
         """
         try:
-            # Test with a simple completion
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": "Hello, this is a health check."
-                    }
-                ],
-                max_tokens=10,
-                temperature=0
-            )
-            
-            if response.choices[0].message.content:
-                return {
-                    "status": "healthy",
-                    "message": f"OpenAI API responding correctly (model: {self.model})"
-                }
-            else:
+            # Check if API key is configured
+            if not self.settings.openai_api_key:
                 return {
                     "status": "unhealthy",
-                    "message": "OpenAI API returned empty response"
+                    "message": "OpenAI API key not configured"
                 }
+            
+            # Check if API key has valid format (starts with 'sk-')
+            if not self.settings.openai_api_key.startswith('sk-'):
+                return {
+                    "status": "unhealthy", 
+                    "message": "OpenAI API key format appears invalid"
+                }
+            
+            # Check if model is configured
+            if not self.model:
+                return {
+                    "status": "unhealthy",
+                    "message": "OpenAI model not configured"
+                }
+            
+            # Return healthy status without making API call
+            # This prevents rate limit consumption from health checks
+            return {
+                "status": "healthy",
+                "message": f"OpenAI configuration valid (model: {self.model})"
+            }
                 
         except Exception as e:
             logger.error(f"OpenAI health check failed: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"OpenAI API error: {str(e)}"
+                "message": f"OpenAI configuration error: {str(e)}"
             }
 
     def _repair_json(self, json_string: str) -> Optional[str]:
