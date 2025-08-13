@@ -258,3 +258,120 @@ class MinIOService:
                 "status": "unhealthy",
                 "message": f"Unexpected error: {str(e)}"
             }
+
+    async def get_transcript_file(self, account_id: str, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve transcript file from MinIO
+        
+        Args:
+            account_id: Account identifier for folder organization
+            conversation_id: Conversation identifier
+            
+        Returns:
+            Dict containing file data or None if not found
+        """
+        try:
+            # Create object name with folder structure
+            object_name = f"{account_id}/transcripts/{conversation_id}.txt"
+            
+            # Get object from MinIO
+            response = self.client.get_object(self.bucket_name, object_name)
+            
+            # Read file content
+            content = response.read()
+            
+            return {
+                "content": content,
+                "size": len(content),
+                "object_name": object_name,
+                "content_type": "text/plain"
+            }
+            
+        except S3Error as e:
+            if e.code == 'NoSuchKey':
+                logger.warning(f"Transcript file not found: {object_name}")
+                return None
+            else:
+                logger.error(f"MinIO error retrieving transcript file: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving transcript file: {e}")
+            return None
+
+    async def get_report_file(self, account_id: str, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve PDF report file from MinIO
+        
+        Args:
+            account_id: Account identifier for folder organization
+            conversation_id: Conversation identifier
+            
+        Returns:
+            Dict containing file data or None if not found
+        """
+        try:
+            # Create object name with folder structure
+            object_name = f"{account_id}/reports/{conversation_id}.pdf"
+            
+            # Get object from MinIO
+            response = self.client.get_object(self.bucket_name, object_name)
+            
+            # Read file content
+            content = response.read()
+            
+            return {
+                "content": content,
+                "size": len(content),
+                "object_name": object_name,
+                "content_type": "application/pdf"
+            }
+            
+        except S3Error as e:
+            if e.code == 'NoSuchKey':
+                logger.warning(f"Report file not found: {object_name}")
+                return None
+            else:
+                logger.error(f"MinIO error retrieving report file: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving report file: {e}")
+            return None
+
+    async def get_audio_file(self, account_id: str, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve audio file from MinIO
+        
+        Args:
+            account_id: Account identifier for folder organization
+            conversation_id: Conversation identifier
+            
+        Returns:
+            Dict containing file data or None if not found
+        """
+        try:
+            # Create object name with folder structure
+            object_name = f"{account_id}/audio/{conversation_id}.mp3"
+            
+            # Get object from MinIO
+            response = self.client.get_object(self.bucket_name, object_name)
+            
+            # Read file content
+            content = response.read()
+            
+            return {
+                "content": content,
+                "size": len(content),
+                "object_name": object_name,
+                "content_type": "audio/mpeg"
+            }
+            
+        except S3Error as e:
+            if e.code == 'NoSuchKey':
+                logger.warning(f"Audio file not found: {object_name}")
+                return None
+            else:
+                logger.error(f"MinIO error retrieving audio file: {e}")
+                return None
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving audio file: {e}")
+            return None

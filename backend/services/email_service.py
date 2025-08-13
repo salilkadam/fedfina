@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending emails with PDF attachments"""
+    """Service for sending emails with download links"""
 
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -30,19 +30,19 @@ class EmailService:
         self,
         to_email: str,
         conversation_id: str,
-        pdf_bytes: bytes,
-        metadata: Dict[str, Any],
-        account_id: str = None
+        account_id: str,
+        files: Dict[str, str],
+        metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Send a conversation report via email
+        Send a conversation report via email with download links
         
         Args:
             to_email: Recipient email address
             conversation_id: The conversation ID
-            pdf_bytes: PDF file bytes
+            account_id: The account ID for file organization
+            files: Dictionary containing file URLs
             metadata: Additional metadata about the conversation
-            account_id: The account ID for tracking
             
         Returns:
             Dict containing the email sending result
@@ -52,21 +52,11 @@ class EmailService:
             msg = MIMEMultipart()
             msg['From'] = self.from_email
             msg['To'] = to_email
-            msg['Subject'] = f"Loan Application Analysis Report - {account_id or 'Customer'}"
+            msg['Subject'] = f"Conversation Analysis Report - {account_id or 'Customer'}"
             
-            # Create email body
-            body = self._create_email_body(conversation_id, metadata, account_id)
+            # Create email body with download links
+            body = self._create_email_body_with_links(conversation_id, account_id, files, metadata)
             msg.attach(MIMEText(body, 'html'))
-            
-            # Attach PDF
-            pdf_attachment = MIMEBase('application', 'pdf')
-            pdf_attachment.set_payload(pdf_bytes)
-            encoders.encode_base64(pdf_attachment)
-            pdf_attachment.add_header(
-                'Content-Disposition',
-                f'attachment; filename=conversation_report_{conversation_id}.pdf'
-            )
-            msg.attach(pdf_attachment)
             
             # Send email
             # Configure SMTP connection based on port
@@ -106,13 +96,14 @@ class EmailService:
                 "error": f"Email sending failed: {str(e)}"
             }
 
-    def _create_email_body(
+    def _create_email_body_with_links(
         self,
         conversation_id: str,
-        metadata: Dict[str, Any],
-        account_id: str = None
+        account_id: str,
+        files: Dict[str, str],
+        metadata: Dict[str, Any]
     ) -> str:
-        """Create the email body HTML content with business summary"""
+        """Create the email body HTML content with download links"""
         
         # Extract business summary from parsed data
         from models.openai_response_models import OpenAIStructuredResponse
@@ -145,22 +136,124 @@ class EmailService:
                 logger.warning(f"Error extracting summary data for email: {e}")
                 # Use defaults
         
+        # Generate secure download links using tokens
+        base_url = f"https://fedfina.bionicaisolutions.com/api/v1/download/secure"
+        
+        # Import the token generation function
+        import sys
+        import os
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from app import generate_download_token
+        
+        # Create download links for each file type
+        download_links = {}
+        
+        if 'transcript' in files:
+            token = generate_download_token(conversation_id, account_id, 'transcript')
+            download_links['transcript'] = f"{base_url}/{token}"
+        
+        if 'pdf' in files or 'report' in files:
+            token = generate_download_token(conversation_id, account_id, 'report')
+            download_links['report'] = f"{base_url}/{token}"
+        
+        if 'audio' in files:
+            token = generate_download_token(conversation_id, account_id, 'audio')
+            download_links['audio'] = f"{base_url}/{token}"
+        
+        # Create the download links HTML
+        download_links_html = ""
+        if download_links:
+            download_links_html = """
+            <div class="download-section">
+                <h3>Download Your Files</h3>
+                <p>Click on the links below to download your conversation files:</p>
+                <div class="download-links">
+            """
+            
+            if 'transcript' in download_links:
+                download_links_html += f"""
+                    <div class="download-item">
+                        <a href="{download_links['transcript']}" class="download-button">
+                            📄 Download Transcript (TXT)
+                        </a>
+                        <p class="download-description">Complete conversation transcript in text format</p>
+                    </div>
+                """
+            
+            if 'report' in download_links:
+                download_links_html += f"""
+                    <div class="download-item">
+                        <a href="{download_links['report']}" class="download-button">
+                            📊 Download Report (PDF)
+                        </a>
+                        <p class="download-description">Detailed analysis report with financial insights</p>
+                    </div>
+                """
+            
+            if 'audio' in download_links:
+                download_links_html += f"""
+                    <div class="download-item">
+                        <a href="{download_links['audio']}" class="download-button">
+                            🎵 Download Audio (MP3)
+                        </a>
+                        <p class="download-description">Original conversation audio recording</p>
+                    </div>
+                """
+            
+            download_links_html += """
+                </div>
+                <div class="download-note">
+                    <p><strong>Security Note:</strong> These links are secure and will expire after 24 hours or after first use. No authentication required.</p>
+                </div>
+            </div>
+            """
+        
         html_body = f"""
         <html>
         <head>
             <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                .header {{ background-color: #f8f9fa; padding: 20px; border-radius: 5px; }}
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }}
+                .header {{ background-color: #f8f9fa; padding: 20px; border-radius: 5px; text-align: center; }}
                 .content {{ padding: 20px; }}
                 .metadata {{ background-color: #f1f3f4; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-                .footer {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 12px; color: #666; }}
+                .footer {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 12px; color: #666; text-align: center; }}
                 .highlight {{ color: #007bff; font-weight: bold; }}
+                .download-section {{ background-color: #e8f4fd; padding: 20px; border-radius: 5px; margin: 20px 0; }}
+                .download-links {{ display: flex; flex-direction: column; gap: 15px; }}
+                .download-item {{ text-align: center; }}
+                .download-button {{ 
+                    display: inline-block; 
+                    background-color: #007bff; 
+                    color: white; 
+                    padding: 12px 24px; 
+                    text-decoration: none; 
+                    border-radius: 5px; 
+                    font-weight: bold;
+                    transition: background-color 0.3s;
+                }}
+                .download-button:hover {{ background-color: #0056b3; }}
+                .download-description {{ margin-top: 5px; font-size: 14px; color: #666; }}
+                .download-note {{ 
+                    background-color: #fff3cd; 
+                    border: 1px solid #ffeaa7; 
+                    padding: 10px; 
+                    border-radius: 3px; 
+                    margin-top: 15px;
+                    font-size: 12px;
+                }}
+                .file-info {{ 
+                    background-color: #d4edda; 
+                    border: 1px solid #c3e6cb; 
+                    padding: 10px; 
+                    border-radius: 3px; 
+                    margin: 10px 0;
+                }}
             </style>
         </head>
         <body>
             <div class="header">
-                <h2>Conversation Analysis Report</h2>
-                <p>Your conversation analysis report is ready for review.</p>
+                <h2>🎉 Conversation Analysis Complete!</h2>
+                <p>Your conversation has been processed and analyzed successfully.</p>
             </div>
             
             <div class="content">
@@ -168,6 +261,7 @@ class EmailService:
                 <ul>
                     <li><strong>Customer Name:</strong> <span class="highlight">{customer_name}</span></li>
                     <li><strong>Business Name:</strong> {business_name}</li>
+                    <li><strong>Conversation ID:</strong> {conversation_id}</li>
                     <li><strong>Report Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</li>
                 </ul>
                 
@@ -176,21 +270,34 @@ class EmailService:
                     <p style="margin: 10px 0; line-height: 1.6;">{executive_summary}</p>
                 </div>
                 
-                <p><strong>The attached PDF report contains:</strong></p>
-                <ul>
-                    <li>Detailed income breakdown with calculations</li>
-                    <li>Comprehensive expense analysis</li>
-                    <li>Loan disbursement requirements and repayment capacity</li>
-                    <li>Risk assessment and recommendations</li>
-                    <li>Complete conversation transcript</li>
-                </ul>
+                <div class="file-info">
+                    <h4>Generated Files</h4>
+                    <p>The following files have been created for your conversation:</p>
+                    <ul>
+                        <li><strong>Transcript:</strong> Complete conversation in text format</li>
+                        <li><strong>Report:</strong> Detailed PDF analysis with financial insights</li>
+                        <li><strong>Audio:</strong> Original conversation recording</li>
+                    </ul>
+                </div>
                 
-                <p style="margin-top: 20px;"><em>Please review the attached PDF for complete financial details and analysis.</em></p>
+                {download_links_html}
+                
+                <div class="metadata">
+                    <h4>What's Included in Your Report</h4>
+                    <ul>
+                        <li>Detailed income breakdown with calculations</li>
+                        <li>Comprehensive expense analysis</li>
+                        <li>Loan disbursement requirements and repayment capacity</li>
+                        <li>Risk assessment and recommendations</li>
+                        <li>Complete conversation transcript</li>
+                    </ul>
+                </div>
             </div>
             
             <div class="footer">
                 <p>This report was generated automatically by the FedFina Postprocess API.</p>
-                <p>If you have any questions, please contact support.</p>
+                <p>If you have any questions or need assistance, please contact our support team.</p>
+                <p><small>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</small></p>
             </div>
         </body>
         </html>

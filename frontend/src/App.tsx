@@ -210,7 +210,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>AI Conversation Widget</h1>
+        <h1>Start Voice PD</h1>
 
         {/* Display URL Parameters */}
         <div style={{
@@ -245,10 +245,10 @@ function App() {
             textAlign: 'center'
           }}>
             <div style={{ fontSize: '18px', marginBottom: '10px' }}>
-              🔄 Loading ElevenLabs Widget...
+              🔄 Loading Voice PD System...
             </div>
             <div style={{ fontSize: '14px', color: '#666' }}>
-              Please wait while we initialize the conversation widget
+              Please wait while we initialize the voice PD system
             </div>
             <div style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
               Debug: Script loaded: {scriptLoadedRef.current ? 'Yes' : 'No'} |

@@ -8,10 +8,12 @@ which handles conversation processing, file storage, and email delivery.
 import os
 import logging
 from contextlib import asynccontextmanager
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
+import secrets
+import time
 
-from fastapi import FastAPI, HTTPException, Depends, Header, Request, Body
+from fastapi import FastAPI, HTTPException, Depends, Header, Request, Body, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -25,6 +27,55 @@ logger = logging.getLogger(__name__)
 
 # Global state for application lifecycle
 app_state: Dict[str, Any] = {}
+
+# In-memory storage for download tokens (in production, use Redis or database)
+download_tokens: Dict[str, Dict[str, Any]] = {}
+
+def generate_download_token(conversation_id: str, account_id: str, file_type: str) -> str:
+    """
+    Generate a secure download token
+    
+    Args:
+        conversation_id: The conversation ID
+        account_id: The account ID
+        file_type: Type of file (transcript, report, audio)
+        
+    Returns:
+        Secure download token
+    """
+    token = secrets.token_urlsafe(32)
+    expires_at = time.time() + (24 * 60 * 60)  # 24 hours
+    
+    download_tokens[token] = {
+        'conversation_id': conversation_id,
+        'account_id': account_id,
+        'file_type': file_type,
+        'expires_at': expires_at
+    }
+    
+    return token
+
+def validate_download_token(token: str) -> Optional[Dict[str, Any]]:
+    """
+    Validate a download token
+    
+    Args:
+        token: The download token
+        
+    Returns:
+        Token data if valid, None otherwise
+    """
+    if token not in download_tokens:
+        return None
+    
+    token_data = download_tokens[token]
+    
+    # Check if token has expired
+    if time.time() > token_data['expires_at']:
+        del download_tokens[token]
+        return None
+    
+    return token_data
 
 
 @asynccontextmanager
@@ -379,16 +430,16 @@ async def postprocess_conversation_internal(request: PostprocessRequest) -> Post
     if pdf_storage_result.get('status') == 'success':
         files["pdf"] = pdf_storage_result.get('file_url')
     
-    # Step 6: Send email with PDF report (if requested)
+    # Step 6: Send email with download links (if requested)
     email_sent = False
     if request.send_email:
-        logger.info("Step 6: Sending email with PDF report")
+        logger.info("Step 6: Sending email with download links")
         email_result = await email_service.send_conversation_report(
             to_email=request.email_id,
             conversation_id=request.conversation_id,
-            pdf_bytes=pdf_bytes,
-            metadata=metadata,
-            account_id=request.account_id
+            account_id=request.account_id,
+            files=files,
+            metadata=metadata
         )
         email_sent = email_result.get('status') == 'success'
     
@@ -406,6 +457,215 @@ async def postprocess_conversation_internal(request: PostprocessRequest) -> Post
         tokens_used=usage.get('total_tokens', 0),
         created_at=datetime.now().isoformat()
     )
+
+
+# Download endpoints for secure file access
+@app.get("/api/v1/download/transcript/{conversation_id}")
+async def download_transcript(
+    conversation_id: str,
+    account_id: str = Query(..., description="Account ID for file access"),
+    api_key: str = Depends(validate_api_key)
+) -> Response:
+    """
+    Download transcript file for a conversation
+    
+    Args:
+        conversation_id: The conversation ID
+        account_id: The account ID for file organization
+        api_key: API key for authentication
+        
+    Returns:
+        File response with transcript content
+    """
+    try:
+        from services.minio_service import MinIOService
+        from config import Settings
+        
+        settings = Settings()
+        minio_service = MinIOService(settings)
+        
+        # Get transcript file from MinIO
+        file_data = await minio_service.get_transcript_file(account_id, conversation_id)
+        
+        if not file_data:
+            raise HTTPException(status_code=404, detail="Transcript file not found")
+        
+        return Response(
+            content=file_data['content'],
+            media_type='text/plain',
+            headers={
+                'Content-Disposition': f'attachment; filename="transcript_{conversation_id}.txt"',
+                'Content-Length': str(len(file_data['content']))
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading transcript: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.get("/api/v1/download/report/{conversation_id}")
+async def download_report(
+    conversation_id: str,
+    account_id: str = Query(..., description="Account ID for file access"),
+    api_key: str = Depends(validate_api_key)
+) -> Response:
+    """
+    Download PDF report for a conversation
+    
+    Args:
+        conversation_id: The conversation ID
+        account_id: The account ID for file organization
+        api_key: API key for authentication
+        
+    Returns:
+        File response with PDF content
+    """
+    try:
+        from services.minio_service import MinIOService
+        from config import Settings
+        
+        settings = Settings()
+        minio_service = MinIOService(settings)
+        
+        # Get PDF report from MinIO
+        file_data = await minio_service.get_report_file(account_id, conversation_id)
+        
+        if not file_data:
+            raise HTTPException(status_code=404, detail="Report file not found")
+        
+        return Response(
+            content=file_data['content'],
+            media_type='application/pdf',
+            headers={
+                'Content-Disposition': f'attachment; filename="report_{conversation_id}.pdf"',
+                'Content-Length': str(len(file_data['content']))
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading report: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@app.get("/api/v1/download/audio/{conversation_id}")
+async def download_audio(
+    conversation_id: str,
+    account_id: str = Query(..., description="Account ID for file access"),
+    api_key: str = Depends(validate_api_key)
+) -> Response:
+    """
+    Download audio file for a conversation
+    
+    Args:
+        conversation_id: The conversation ID
+        account_id: The account ID for file organization
+        api_key: API key for authentication
+        
+    Returns:
+        File response with audio content
+    """
+    try:
+        from services.minio_service import MinIOService
+        from config import Settings
+        
+        settings = Settings()
+        minio_service = MinIOService(settings)
+        
+        # Get audio file from MinIO
+        file_data = await minio_service.get_audio_file(account_id, conversation_id)
+        
+        if not file_data:
+            raise HTTPException(status_code=404, detail="Audio file not found")
+        
+        return Response(
+            content=file_data['content'],
+            media_type='audio/mpeg',
+            headers={
+                'Content-Disposition': f'attachment; filename="audio_{conversation_id}.mp3"',
+                'Content-Length': str(len(file_data['content']))
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading audio: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# Secure download endpoints with token-based access
+@app.get("/api/v1/download/secure/{token}")
+async def download_file_secure(token: str) -> Response:
+    """
+    Download file using a secure token
+    
+    Args:
+        token: Secure download token
+        
+    Returns:
+        File response
+    """
+    try:
+        # Validate token
+        token_data = validate_download_token(token)
+        if not token_data:
+            raise HTTPException(status_code=401, detail="Invalid or expired download token")
+        
+        conversation_id = token_data['conversation_id']
+        account_id = token_data['account_id']
+        file_type = token_data['file_type']
+        
+        from services.minio_service import MinIOService
+        from config import Settings
+        
+        settings = Settings()
+        minio_service = MinIOService(settings)
+        
+        # Get file based on type
+        file_data = None
+        filename = ""
+        media_type = ""
+        
+        if file_type == 'transcript':
+            file_data = await minio_service.get_transcript_file(account_id, conversation_id)
+            filename = f"transcript_{conversation_id}.txt"
+            media_type = 'text/plain'
+        elif file_type == 'report':
+            file_data = await minio_service.get_report_file(account_id, conversation_id)
+            filename = f"report_{conversation_id}.pdf"
+            media_type = 'application/pdf'
+        elif file_type == 'audio':
+            file_data = await minio_service.get_audio_file(account_id, conversation_id)
+            filename = f"audio_{conversation_id}.mp3"
+            media_type = 'audio/mpeg'
+        else:
+            raise HTTPException(status_code=400, detail="Invalid file type")
+        
+        if not file_data:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Remove token after successful download (one-time use)
+        del download_tokens[token]
+        
+        return Response(
+            content=file_data['content'],
+            media_type=media_type,
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(len(file_data['content']))
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading file with token: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 # Root endpoint
