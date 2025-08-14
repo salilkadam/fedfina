@@ -64,6 +64,14 @@ class Settings(BaseSettings):
     api_key_header: str = Field(default="X-API-Key", env="API_KEY_HEADER")
     rate_limit_per_minute: int = Field(default=10, env="RATE_LIMIT_PER_MINUTE")
     
+    # Callback Configuration
+    callback_enabled: bool = Field(default=True, env="CALLBACK_ENABLED")
+    callback_url: str = Field(
+        default="https://hr.fedfina.com/salespd/api/saveVoicePD",
+        env="CALLBACK_URL"
+    )
+    callback_timeout_seconds: int = Field(default=30, env="CALLBACK_TIMEOUT_SECONDS")
+    
     # Processing Settings
     max_file_size_mb: int = Field(default=10, env="MAX_FILE_SIZE_MB")
     processing_timeout_minutes: int = Field(default=10, env="PROCESSING_TIMEOUT_MINUTES")

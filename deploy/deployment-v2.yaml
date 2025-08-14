@@ -99,6 +99,21 @@ spec:
                 secretKeyRef:
                   name: fedfina-secrets
                   key: smtp-use-tls
+            - name: CALLBACK_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: callback-enabled
+            - name: CALLBACK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: callback-url
+            - name: CALLBACK_TIMEOUT_SECONDS
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: callback-timeout-seconds
             - name: REDIS_URL
               valueFrom:
                 secretKeyRef:

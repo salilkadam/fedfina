@@ -402,6 +402,7 @@ async def postprocess_conversation_internal(request: PostprocessRequest) -> Post
     from services.prompt_service import PromptService
     from services.pdf_service import PDFService
     from services.email_service import EmailService
+    from services.callback_service import CallbackService
     
     start_time = time.time()
     
@@ -414,143 +415,188 @@ async def postprocess_conversation_internal(request: PostprocessRequest) -> Post
     prompt_service = PromptService(settings)
     pdf_service = PDFService(settings)
     email_service = EmailService(settings)
+    callback_service = CallbackService(settings)
     
-    # Step 1: Extract complete transcript from ElevenLabs API
-    logger.info("Step 1: Extracting transcript from ElevenLabs")
-    conversation_result = await elevenlabs_service.get_conversation(request.conversation_id)
+    # Track files and processing status for callback
+    files = {}
+    processing_error = None
     
-    if conversation_result.get('status') != 'success':
-        raise HTTPException(
-            status_code=404,
-            detail=f"Failed to retrieve conversation: {conversation_result.get('error')}"
+    try:
+        # Step 1: Extract complete transcript from ElevenLabs API
+        logger.info("Step 1: Extracting transcript from ElevenLabs")
+        conversation_result = await elevenlabs_service.get_conversation(request.conversation_id)
+        
+        if conversation_result.get('status') != 'success':
+            error_msg = f"Failed to retrieve conversation: {conversation_result.get('error')}"
+            logger.error(error_msg)
+            processing_error = error_msg
+            raise HTTPException(status_code=404, detail=error_msg)
+        
+        transcript = conversation_result.get('transcript', '')
+        audio_url = conversation_result.get('audio_url')
+        
+        # Step 2: Store transcript as text file in MinIO
+        logger.info("Step 2: Storing transcript in MinIO")
+        transcript_storage_result = await minio_service.store_transcript(
+            account_id=request.account_id,
+            conversation_id=request.conversation_id,
+            transcript=transcript
         )
-    
-    transcript = conversation_result.get('transcript', '')
-    audio_url = conversation_result.get('audio_url')
-    
-    # Step 2: Store transcript as text file in MinIO
-    logger.info("Step 2: Storing transcript in MinIO")
-    transcript_storage_result = await minio_service.store_transcript(
-        account_id=request.account_id,
-        conversation_id=request.conversation_id,
-        transcript=transcript
-    )
-    
-    if transcript_storage_result.get('status') != 'success':
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to store transcript: {transcript_storage_result.get('error')}"
+        
+        if transcript_storage_result.get('status') != 'success':
+            error_msg = f"Failed to store transcript: {transcript_storage_result.get('error')}"
+            logger.error(error_msg)
+            processing_error = error_msg
+            raise HTTPException(status_code=500, detail=error_msg)
+        
+        transcript_url = transcript_storage_result.get('file_url')
+        files["transcript"] = transcript_url
+        
+        # Step 3: Download and store audio file in MinIO
+        logger.info("Step 3: Processing audio file")
+        audio_storage_result = None
+        
+        if audio_url:
+            audio_data = await elevenlabs_service.download_audio(audio_url)
+            if audio_data:
+                audio_storage_result = await minio_service.store_audio_file(
+                    account_id=request.account_id,
+                    conversation_id=request.conversation_id,
+                    audio_data=audio_data,
+                    file_extension="mp3"
+                )
+                if audio_storage_result.get('status') == 'success':
+                    files["audio"] = audio_storage_result.get('file_url')
+        
+        # Step 4: Pass transcript to OpenAI for structured output
+        logger.info("Step 4: Generating structured output with OpenAI")
+        prompt_result = await prompt_service.load_prompt_template()
+        if prompt_result.get('status') != 'success':
+            error_msg = f"Failed to load prompt template: {prompt_result.get('error')}"
+            logger.error(error_msg)
+            processing_error = error_msg
+            raise HTTPException(status_code=500, detail=error_msg)
+        
+        prompt_template = prompt_result.get('prompt_template', '')
+        summary_result = await openai_service.summarize_conversation(transcript, prompt_template)
+        
+        if summary_result.get('status') != 'success':
+            error_msg = f"Failed to generate summary: {summary_result.get('error')}"
+            logger.error(error_msg)
+            processing_error = error_msg
+            raise HTTPException(status_code=500, detail=error_msg)
+        
+        summary = summary_result.get('summary', '')
+        parsed_summary = summary_result.get('parsed_summary')  # Get parsed JSON data
+        usage = summary_result.get('usage', {})
+        
+        # Step 5: Use structured output to generate PDF report
+        logger.info("Step 5: Generating PDF report")
+        metadata = {
+            'conversation_id': request.conversation_id,
+            'account_id': request.account_id,
+            'transcript': transcript,
+            'transcript_length': len(transcript),
+            'summary_length': len(summary),
+            'ai_model': summary_result.get('model', 'Unknown'),
+            'tokens_used': usage.get('total_tokens', 0),
+            'transcript_url': transcript_url,
+            'audio_url': files.get("audio"),
+            'parsed_summary': parsed_summary  # Include parsed JSON data
+        }
+        
+        pdf_result = await pdf_service.generate_conversation_report(
+            conversation_id=request.conversation_id,
+            transcript=transcript,
+            summary=summary,
+            metadata=metadata,
+            account_id=request.account_id
         )
-    
-    transcript_url = transcript_storage_result.get('file_url')
-    files = {"transcript": transcript_url}
-    
-    # Step 3: Download and store audio file in MinIO
-    logger.info("Step 3: Processing audio file")
-    audio_storage_result = None
-    
-    if audio_url:
-        audio_data = await elevenlabs_service.download_audio(audio_url)
-        if audio_data:
-            audio_storage_result = await minio_service.store_audio_file(
-                account_id=request.account_id,
+        
+        if pdf_result.get('status') != 'success':
+            error_msg = f"Failed to generate PDF: {pdf_result.get('error')}"
+            logger.error(error_msg)
+            processing_error = error_msg
+            raise HTTPException(status_code=500, detail=error_msg)
+        
+        pdf_bytes = pdf_result.get('pdf_bytes')
+        
+        # Store PDF in MinIO
+        pdf_storage_result = await minio_service.store_pdf_report(
+            account_id=request.account_id,
+            conversation_id=request.conversation_id,
+            pdf_data=pdf_bytes
+        )
+        
+        if pdf_storage_result.get('status') == 'success':
+            files["pdf"] = pdf_storage_result.get('file_url')
+        
+        # Step 6: Send email with download links (if requested)
+        email_sent = False
+        if request.send_email:
+            logger.info("Step 6: Sending email with download links")
+            email_result = await email_service.send_conversation_report(
+                to_email=request.email_id,
                 conversation_id=request.conversation_id,
-                audio_data=audio_data,
-                file_extension="mp3"
+                account_id=request.account_id,
+                files=files,
+                metadata=metadata
             )
-            if audio_storage_result.get('status') == 'success':
-                files["audio"] = audio_storage_result.get('file_url')
-    
-    # Step 4: Pass transcript to OpenAI for structured output
-    logger.info("Step 4: Generating structured output with OpenAI")
-    prompt_result = await prompt_service.load_prompt_template()
-    if prompt_result.get('status') != 'success':
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to load prompt template: {prompt_result.get('error')}"
+            email_sent = email_result.get('status') == 'success'
+            
+            if not email_sent:
+                logger.warning(f"Email sending failed: {email_result.get('error', 'Unknown error')}")
+        
+        # Step 7: Send callback notification
+        logger.info("Step 7: Sending callback notification")
+        callback_result = await callback_service.send_success_callback(
+            applicant_id=request.account_id,
+            email_id=request.email_id,
+            artifacts=files
         )
-    
-    prompt_template = prompt_result.get('prompt_template', '')
-    summary_result = await openai_service.summarize_conversation(transcript, prompt_template)
-    
-    if summary_result.get('status') != 'success':
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate summary: {summary_result.get('error')}"
-        )
-    
-    summary = summary_result.get('summary', '')
-    parsed_summary = summary_result.get('parsed_summary')  # Get parsed JSON data
-    usage = summary_result.get('usage', {})
-    
-    # Step 5: Use structured output to generate PDF report
-    logger.info("Step 5: Generating PDF report")
-    metadata = {
-        'conversation_id': request.conversation_id,
-        'account_id': request.account_id,
-        'transcript': transcript,
-        'transcript_length': len(transcript),
-        'summary_length': len(summary),
-        'ai_model': summary_result.get('model', 'Unknown'),
-        'tokens_used': usage.get('total_tokens', 0),
-        'transcript_url': transcript_url,
-        'audio_url': files.get("audio"),
-        'parsed_summary': parsed_summary  # Include parsed JSON data
-    }
-    
-    pdf_result = await pdf_service.generate_conversation_report(
-        conversation_id=request.conversation_id,
-        transcript=transcript,
-        summary=summary,
-        metadata=metadata,
-        account_id=request.account_id
-    )
-    
-    if pdf_result.get('status') != 'success':
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate PDF: {pdf_result.get('error')}"
-        )
-    
-    pdf_bytes = pdf_result.get('pdf_bytes')
-    
-    # Store PDF in MinIO
-    pdf_storage_result = await minio_service.store_pdf_report(
-        account_id=request.account_id,
-        conversation_id=request.conversation_id,
-        pdf_data=pdf_bytes
-    )
-    
-    if pdf_storage_result.get('status') == 'success':
-        files["pdf"] = pdf_storage_result.get('file_url')
-    
-    # Step 6: Send email with download links (if requested)
-    email_sent = False
-    if request.send_email:
-        logger.info("Step 6: Sending email with download links")
-        email_result = await email_service.send_conversation_report(
-            to_email=request.email_id,
+        
+        if callback_result.get('status') != 'success':
+            logger.warning(f"Callback notification failed: {callback_result.get('message')}")
+        else:
+            logger.info("Callback notification sent successfully")
+        
+        processing_time = time.time() - start_time
+        
+        return PostprocessResponse(
+            status="success",
+            message=f"Conversation processed successfully. Email sent: {email_sent}",
             conversation_id=request.conversation_id,
             account_id=request.account_id,
+            email_id=request.email_id,
             files=files,
-            metadata=metadata
+            processing_time=processing_time,
+            ai_model=summary_result.get('model', 'Unknown'),
+            tokens_used=usage.get('total_tokens', 0),
+            created_at=datetime.now().isoformat()
         )
-        email_sent = email_result.get('status') == 'success'
-    
-    processing_time = time.time() - start_time
-    
-    return PostprocessResponse(
-        status="success",
-        message=f"Conversation processed successfully. Email sent: {email_sent}",
-        conversation_id=request.conversation_id,
-        account_id=request.account_id,
-        email_id=request.email_id,
-        files=files,
-        processing_time=processing_time,
-        ai_model=summary_result.get('model', 'Unknown'),
-        tokens_used=usage.get('total_tokens', 0),
-        created_at=datetime.now().isoformat()
-    )
+        
+    except Exception as e:
+        # Send failure callback if processing failed
+        logger.error(f"Processing failed: {str(e)}")
+        
+        try:
+            callback_result = await callback_service.send_failure_callback(
+                applicant_id=request.account_id,
+                email_id=request.email_id,
+                error_description=processing_error or str(e),
+                artifacts=files  # Include any files that were successfully created
+            )
+            
+            if callback_result.get('status') != 'success':
+                logger.warning(f"Failure callback notification failed: {callback_result.get('message')}")
+            else:
+                logger.info("Failure callback notification sent successfully")
+                
+        except Exception as callback_error:
+            logger.error(f"Failed to send failure callback: {str(callback_error)}")
+        
+        # Re-raise the original exception
+        raise
 
 
 # Download endpoints for secure file access
