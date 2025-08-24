@@ -403,6 +403,7 @@ async def postprocess_conversation_internal(request: PostprocessRequest) -> Post
     from services.pdf_service import PDFService
     from services.email_service import EmailService
     from services.callback_service import CallbackService
+    from services.database_service import DatabaseService
     
     start_time = time.time()
     
@@ -416,6 +417,7 @@ async def postprocess_conversation_internal(request: PostprocessRequest) -> Post
     pdf_service = PDFService(settings)
     email_service = EmailService(settings)
     callback_service = CallbackService(settings)
+    database_service = DatabaseService(settings)
     
     # Track files and processing status for callback
     files = {}
@@ -560,6 +562,17 @@ async def postprocess_conversation_internal(request: PostprocessRequest) -> Post
         else:
             logger.info("Callback notification sent successfully")
         
+        # Persist minimal run record in database (account, email, conversation, artifact URLs)
+        try:
+            await database_service.save_run_record(
+                account_id=request.account_id,
+                email_id=request.email_id,
+                conversation_id=request.conversation_id,
+                files=files,
+            )
+        except Exception as db_err:
+            logger.warning(f"Failed to save run record: {db_err}")
+
         processing_time = time.time() - start_time
         
         return PostprocessResponse(

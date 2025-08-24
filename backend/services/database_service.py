@@ -4,6 +4,7 @@ Database Service for PostgreSQL operations
 import logging
 import psycopg2
 from typing import Dict, Any, Optional, List
+import uuid
 from datetime import datetime, timedelta
 from config import Settings
 from models.database_models import (
@@ -27,6 +28,95 @@ class DatabaseService:
     def _get_connection(self):
         """Get database connection"""
         return psycopg2.connect(self.connection_string)
+    
+    async def save_run_record(
+        self,
+        *,
+        account_id: str,
+        email_id: str,
+        conversation_id: str,
+        files: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """
+        Persist a single run record capturing required artifacts.
+
+        This creates a lightweight table if it does not exist yet:
+        conversation_runs(id, account_id, email_id, conversation_id, created_at,
+                          transcript_url, audio_url, report_url)
+
+        Args:
+            account_id: Account identifier
+            email_id: Email address
+            conversation_id: ElevenLabs conversation id
+            files: Dict with keys like "transcript", "audio", "pdf" mapping to URLs
+
+        Returns:
+            Dict with status and inserted id
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+
+            # Ensure table exists (id stored as TEXT to avoid extension requirements)
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS conversation_runs (
+                    id TEXT PRIMARY KEY,
+                    account_id TEXT NOT NULL,
+                    email_id TEXT NOT NULL,
+                    conversation_id TEXT NOT NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    transcript_url TEXT,
+                    audio_url TEXT,
+                    report_url TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_conversation_runs_conversation_id
+                    ON conversation_runs(conversation_id);
+                """
+            )
+
+            run_id = str(uuid.uuid4())
+            transcript_url = files.get("transcript") or files.get("transcript_url")
+            audio_url = files.get("audio") or files.get("audio_url")
+            report_url = files.get("pdf") or files.get("report_url")
+
+            cursor.execute(
+                """
+                INSERT INTO conversation_runs (
+                    id, account_id, email_id, conversation_id, created_at,
+                    transcript_url, audio_url, report_url
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    run_id,
+                    account_id,
+                    email_id,
+                    conversation_id,
+                    datetime.utcnow(),
+                    transcript_url,
+                    audio_url,
+                    report_url,
+                ),
+            )
+
+            conn.commit()
+            cursor.close()
+            conn.close()
+
+            return {"status": "success", "id": run_id}
+
+        except Exception as e:
+            logger.error(f"Error saving run record: {e}")
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            try:
+                cursor.close()
+                conn.close()
+            except Exception:
+                pass
+            return {"status": "error", "error": str(e)}
     
     async def create_processing_job(self, email_id: str, account_id: str, conversation_id: str) -> Dict[str, Any]:
         """
