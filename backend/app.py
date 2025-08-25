@@ -855,13 +855,20 @@ async def get_conversations_by_account(account_id: str):
         # Format the response
         response_data = []
         for conv in conversations:
+            # Generate secure download tokens for each file type
+            transcript_token = generate_download_token(conv['conversation_id'], conv['account_id'], 'transcript')
+            audio_token = generate_download_token(conv['conversation_id'], conv['account_id'], 'audio')
+            report_token = generate_download_token(conv['conversation_id'], conv['account_id'], 'report')
+            
+            # Create secure download URLs
+            base_url = "https://fedfina.bionicaisolutions.com"
             response_data.append({
                 "account_id": conv['account_id'],
                 "timestamp": conv['created_at'].isoformat() if conv['created_at'] else None,
                 "conversation_id": conv['conversation_id'],
-                "transcript_url": conv['transcript_url'],
-                "audio_url": conv['audio_url'],
-                "report_url": conv['report_url']
+                "transcript_url": f"{base_url}/api/v1/download/secure/{transcript_token}",
+                "audio_url": f"{base_url}/api/v1/download/secure/{audio_token}",
+                "report_url": f"{base_url}/api/v1/download/secure/{report_token}"
             })
         
         return {
