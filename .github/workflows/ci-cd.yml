@@ -125,7 +125,7 @@ jobs:
         platforms: linux/amd64,linux/arm64
 
   deploy-staging:
-    name: Deploy to Staging
+    name: Deploy to Staging (GitOps)
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
@@ -135,59 +135,20 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-        
-    - name: Configure kubectl for K3s
+    - name: Update image tags in staging manifests (GitOps)
       run: |
-        mkdir -p $HOME/.kube
-        echo "${{ secrets.K3S_CONFIG }}" | base64 -d > $HOME/.kube/config
-        chmod 600 $HOME/.kube/config
-        
-    - name: Deploy to staging
-      run: |
-        # Update image tags in deployment
         sed -i 's|docker.io/docker4zerocool/fedfina-backend:latest|docker.io/docker4zerocool/fedfina-backend:${{ github.sha }}|g' deploy/deployment-staging.yaml
         sed -i 's|docker.io/docker4zerocool/fedfina-frontend:latest|docker.io/docker4zerocool/fedfina-frontend:${{ github.sha }}|g' deploy/deployment-staging.yaml
-        
-        # Apply deployment
-        kubectl apply -f deploy/deployment-staging.yaml
-        
-        # Wait for deployment to be ready
-        kubectl rollout status deployment/fedfina-backend -n fedfina-staging --timeout=300s
-        kubectl rollout status deployment/fedfina-frontend -n fedfina-staging --timeout=300s
-        
-    - name: Health check (Internal)
-      run: |
-        # Wait for services to be ready
-        sleep 30
-        
-        # Check backend health (internal cluster access)
-        kubectl run curl --image=curlimages/curl -i --rm --restart=Never -- \
-          curl -f http://fedfina-backend.fedfina-staging.svc.cluster.local:8000/api/v1/health
-          
-        # Check frontend health (internal cluster access)
-        kubectl run curl --image=curlimages/curl -i --rm --restart=Never -- \
-          curl -f http://fedfina-frontend.fedfina-staging.svc.cluster.local:3000/
-          
-    - name: Deployment Summary
-      run: |
-        echo "🚀 Staging deployment completed successfully!"
-        echo "📋 Deployment Summary:"
-        echo "- Backend: fedfina-backend.fedfina-staging.svc.cluster.local:8000"
-        echo "- Frontend: fedfina-frontend.fedfina-staging.svc.cluster.local:3000"
-        echo "- Namespace: fedfina-staging"
-        echo "- Image Tag: ${{ github.sha }}"
-        echo ""
-        echo "🔍 To access the services:"
-        echo "1. Connect to your K3s cluster"
-        echo "2. Use kubectl port-forward or access via internal network"
-        echo "3. Check logs: kubectl logs -n fedfina-staging -l app=fedfina-backend"
+    
+    - name: Commit and push updated staging manifests
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "GitOps(staging): update image tags to ${{ github.sha }}"
+        branch: develop
+        file_pattern: 'deploy/deployment-staging.yaml'
 
   deploy-production:
-    name: Deploy to Production
+    name: Deploy to Production (GitOps)
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
@@ -197,57 +158,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-        
-    - name: Configure kubectl for K3s
+    - name: Update image tags in production manifests (GitOps)
       run: |
-        mkdir -p $HOME/.kube
-        echo "${{ secrets.K3S_CONFIG }}" | base64 -d > $HOME/.kube/config
-        chmod 600 $HOME/.kube/config
-        
-    - name: Deploy to production
-      run: |
-        # Update image tags in deployment
         sed -i 's|docker.io/docker4zerocool/fedfina-backend:latest|docker.io/docker4zerocool/fedfina-backend:${{ github.sha }}|g' deploy/deployment-v2.yaml
         sed -i 's|docker.io/docker4zerocool/fedfina-frontend:latest|docker.io/docker4zerocool/fedfina-frontend:${{ github.sha }}|g' deploy/deployment-v2.yaml
-        
-        # Apply deployment
-        kubectl apply -f deploy/deployment-v2.yaml
-        
-        # Wait for deployment to be ready
-        kubectl rollout status deployment/fedfina-backend -n fedfina --timeout=60s || true
-        kubectl rollout status deployment/fedfina-frontend -n fedfina --timeout=60s || true
-        
-    - name: Health check (Internal)
-      run: |
-        # Wait for services to be ready
-        sleep 30
-        
-        # Check backend health (internal cluster access)
-        kubectl run curl --image=curlimages/curl -i --rm --restart=Never -- \
-          curl -f http://fedfina-backend.fedfina.svc.cluster.local:8000/api/v1/health
-          
-        # Check frontend health (internal cluster access)
-        kubectl run curl --image=curlimages/curl -i --rm --restart=Never -- \
-          curl -f http://fedfina-frontend.fedfina.svc.cluster.local:3000/
-          
-    - name: Deployment Summary
-      run: |
-        echo "🚀 Production deployment completed successfully!"
-        echo "📋 Deployment Summary:"
-        echo "- Backend: fedfina-backend.fedfina.svc.cluster.local:8000"
-        echo "- Frontend: fedfina-frontend.fedfina.svc.cluster.local:3000"
-        echo "- Namespace: fedfina"
-        echo "- Image Tag: ${{ github.sha }}"
-        echo ""
-        echo "🔍 To access the services:"
-        echo "1. Connect to your K3s cluster"
-        echo "2. Use kubectl port-forward or access via internal network"
-        echo "3. Check logs: kubectl logs -n fedfina -l app=fedfina-backend"
-        echo ""
-        echo "🌐 If you have internal DNS setup:"
-        echo "- Frontend: http://fedfina-s.bionicaisolutions.com (internal network)"
-        echo "- API: http://fedfina-s.bionicaisolutions.com/api (internal network)"
+
+    - name: Commit and push updated production manifests
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "GitOps(prod): update image tags to ${{ github.sha }}"
+        branch: main
+        file_pattern: 'deploy/deployment-v2.yaml'
