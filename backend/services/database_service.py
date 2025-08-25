@@ -401,6 +401,51 @@ class DatabaseService:
                 "average_processing_time": "0s"
             }
     
+    async def get_conversations_by_account(self, account_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all conversation runs for a specific account ID
+        
+        Args:
+            account_id: The account ID to filter by
+            
+        Returns:
+            List of conversation records with URLs
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT id, account_id, email_id, conversation_id, created_at,
+                       transcript_url, audio_url, report_url
+                FROM conversation_runs 
+                WHERE account_id = %s
+                ORDER BY created_at DESC
+            """, (account_id,))
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            conversations = []
+            for row in rows:
+                conversations.append({
+                    "id": row[0],
+                    "account_id": row[1],
+                    "email_id": row[2],
+                    "conversation_id": row[3],
+                    "created_at": row[4],
+                    "transcript_url": row[5],
+                    "audio_url": row[6],
+                    "report_url": row[7]
+                })
+            
+            return conversations
+            
+        except Exception as e:
+            logger.error(f"Error getting conversations for account {account_id}: {e}")
+            return []
+    
     async def health_check(self) -> Dict[str, Any]:
         """
         Check database health

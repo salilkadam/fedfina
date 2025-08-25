@@ -831,6 +831,51 @@ async def download_file_secure(token: str) -> Response:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+@app.get("/api/v1/conversations/{account_id}")
+async def get_conversations_by_account(account_id: str):
+    """
+    Get all conversation runs for a specific account ID
+    
+    Args:
+        account_id: The account ID to filter by
+        
+    Returns:
+        JSON array with conversation data including URLs
+    """
+    try:
+        from services.database_service import DatabaseService
+        from config import Settings
+        
+        settings = Settings()
+        db_service = DatabaseService(settings)
+        
+        # Get conversation runs for the account
+        conversations = await db_service.get_conversations_by_account(account_id)
+        
+        # Format the response
+        response_data = []
+        for conv in conversations:
+            response_data.append({
+                "account_id": conv['account_id'],
+                "timestamp": conv['created_at'].isoformat() if conv['created_at'] else None,
+                "conversation_id": conv['conversation_id'],
+                "transcript_url": conv['transcript_url'],
+                "audio_url": conv['audio_url'],
+                "report_url": conv['report_url']
+            })
+        
+        return {
+            "status": "success",
+            "account_id": account_id,
+            "count": len(response_data),
+            "conversations": response_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Error retrieving conversations for account {account_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 # Root endpoint
 @app.get("/")
 async def root():
