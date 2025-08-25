@@ -212,8 +212,20 @@ jobs:
         echo "Using frontend tag: $FRONTEND_TAG"
         
         # Update manifests with actual tags
-        sed -i "s|docker.io/docker4zerocool/fedfina-backend:[^[:space:]]*|$BACKEND_TAG|g" deploy/deployment-staging.yaml
-        sed -i "s|docker.io/docker4zerocool/fedfina-frontend:[^[:space:]]*|$FRONTEND_TAG|g" deploy/deployment-staging.yaml
+        # Use awk to update specific containers by name
+        awk -v backend_tag="$BACKEND_TAG" -v frontend_tag="$FRONTEND_TAG" '
+        /name: backend/ { in_backend = 1; print; next }
+        /name: frontend/ { in_backend = 0; print; next }
+        /^[[:space:]]*image:/ {
+          if (in_backend) {
+            print "          image: " backend_tag
+          } else {
+            print "          image: " frontend_tag
+          }
+          next
+        }
+        { print }
+        ' deploy/deployment-staging.yaml > deploy/deployment-staging.yaml.tmp && mv deploy/deployment-staging.yaml.tmp deploy/deployment-staging.yaml
     
     - name: Commit and push updated staging manifests
       uses: stefanzweifel/git-auto-commit-action@v5
@@ -245,8 +257,20 @@ jobs:
         echo "Using frontend tag: $FRONTEND_TAG"
         
         # Update manifests with actual tags
-        sed -i "s|docker.io/docker4zerocool/fedfina-backend:[^[:space:]]*|$BACKEND_TAG|g" deploy/deployment-v2.yaml
-        sed -i "s|docker.io/docker4zerocool/fedfina-frontend:[^[:space:]]*|$FRONTEND_TAG|g" deploy/deployment-v2.yaml
+        # Use awk to update specific containers by name
+        awk -v backend_tag="$BACKEND_TAG" -v frontend_tag="$FRONTEND_TAG" '
+        /name: backend/ { in_backend = 1; print; next }
+        /name: frontend/ { in_backend = 0; print; next }
+        /^[[:space:]]*image:/ {
+          if (in_backend) {
+            print "          image: " backend_tag
+          } else {
+            print "          image: " frontend_tag
+          }
+          next
+        }
+        { print }
+        ' deploy/deployment-v2.yaml > deploy/deployment-v2.yaml.tmp && mv deploy/deployment-v2.yaml.tmp deploy/deployment-v2.yaml
 
     - name: Commit and push updated production manifests
       uses: stefanzweifel/git-auto-commit-action@v5
