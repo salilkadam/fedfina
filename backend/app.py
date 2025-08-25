@@ -317,29 +317,39 @@ async def elevenlabs_webhook(
         # Debug: Log all possible locations
         logger.info(f"Looking for dynamic_variables in metadata: {metadata}")
         
-        # First, try direct access in metadata
-        if 'dynamic_variables' in metadata:
+        # First, try direct access in request body (for our test format)
+        if 'email_id' in body:
+            email_id = body.get('email_id')
+            logger.info(f"Found email_id directly in body: {email_id}")
+        if 'account_id' in body:
+            account_id = body.get('account_id')
+            logger.info(f"Found account_id directly in body: {account_id}")
+        
+        # Second, try direct access in metadata
+        if not email_id and 'dynamic_variables' in metadata:
             dynamic_vars = metadata.get('dynamic_variables', {})
             logger.info(f"Found dynamic_variables in metadata: {dynamic_vars}")
-        # Second, try nested under conversation_initiation_client_data in metadata
-        elif 'conversation_initiation_client_data' in metadata:
+        # Third, try nested under conversation_initiation_client_data in metadata
+        elif not email_id and 'conversation_initiation_client_data' in metadata:
             client_data = metadata.get('conversation_initiation_client_data', {})
             dynamic_vars = client_data.get('dynamic_variables', {})
             logger.info(f"Found dynamic_variables in conversation_initiation_client_data (metadata): {dynamic_vars}")
-        # Third, try conversation_initiation_client_data in data section
-        elif 'data' in body and 'conversation_initiation_client_data' in body['data']:
+        # Fourth, try conversation_initiation_client_data in data section
+        elif not email_id and 'data' in body and 'conversation_initiation_client_data' in body['data']:
             client_data = body['data'].get('conversation_initiation_client_data', {})
             dynamic_vars = client_data.get('dynamic_variables', {})
             logger.info(f"Found dynamic_variables in conversation_initiation_client_data (data): {dynamic_vars}")
-        # Fourth, try direct access in webhook_data
-        elif 'data' in body and 'dynamic_variables' in body['data']:
+        # Fifth, try direct access in webhook_data
+        elif not email_id and 'data' in body and 'dynamic_variables' in body['data']:
             dynamic_vars = body['data'].get('dynamic_variables', {})
             logger.info(f"Found dynamic_variables in data: {dynamic_vars}")
-        # Fifth, try looking for email_id and account_id directly in metadata
+        # Sixth, try looking for email_id and account_id directly in metadata
         else:
             logger.info("Checking for email_id and account_id directly in metadata")
-            email_id = metadata.get('email_id') or metadata.get('email')
-            account_id = metadata.get('account_id') or metadata.get('account')
+            if not email_id:
+                email_id = metadata.get('email_id') or metadata.get('email')
+            if not account_id:
+                account_id = metadata.get('account_id') or metadata.get('account')
         
         # Extract from dynamic_vars if not found directly
         if not email_id:
