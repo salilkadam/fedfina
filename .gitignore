@@ -25,3 +25,4 @@ backend/venv/
 backend/__pycache__/
 backend/.env
 deploy/secrets-production.yaml
+.env
