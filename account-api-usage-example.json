@@ -1,0 +1,31 @@
+{
+    "status": "success",
+    "account_id": "Salil",
+    "count": 3,
+    "conversations": [
+        {
+            "account_id": "Salil",
+            "timestamp": "2025-08-25T14:30:25.123456",
+            "conversation_id": "conv_0801k299y9g1eesa8jmdsvj5pfsc",
+            "transcript_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252XzA4MDFrMjk5eTlnMWVlc2E4am1kc3ZqNXBmc2MiLCJhY2NvdW50X2lkIjoiU2FsaWwiLCJmaWxlX3R5cGUiOiJ0cmFuc2NyaXB0IiwidGltZXN0YW1wIjoxNzM0NzY5NjAwfQ==",
+            "audio_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252XzA4MDFrMjk5eTlnMWVlc2E4am1kc3ZqNXBmc2MiLCJhY2NvdW50X2lkIjoiU2FsaWwiLCJmaWxlX3R5cGUiOiJhdWRpbyIsInRpbWVzdGFtcCI6MTczNDc2OTYwMH0=",
+            "report_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252XzA4MDFrMjk5eTlnMWVlc2E4am1kc3ZqNXBmc2MiLCJhY2NvdW50X2lkIjoiU2FsaWwiLCJmaWxlX3R5cGUiOiJyZXBvcnQiLCJ0aW1lc3RhbXAiOjE3MzQ3Njk2MDB9"
+        },
+        {
+            "account_id": "Salil",
+            "timestamp": "2025-08-24T16:45:12.789012",
+            "conversation_id": "conv_1234567890abcdef1234567890abcdef",
+            "transcript_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252XzEyMzQ1Njc4OTBhYmNkZWYxMjM0NTY3ODkwYWJjZGVmIiwiYWNjb3VudF9pZCI6IlNhbGlsIiwiZmlsZV90eXBlIjoidHJhbnNjcmlwdCIsInRpbWVzdGFtcCI6MTczNDc2OTYwMH0=",
+            "audio_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252XzEyMzQ1Njc4OTBhYmNkZWYxMjM0NTY3ODkwYWJjZGVmIiwiYWNjb3VudF9pZCI6IlNhbGlsIiwiZmlsZV90eXBlIjoiYXVkaW8iLCJ0aW1lc3RhbXAiOjE3MzQ3Njk2MDB9",
+            "report_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252XzEyMzQ1Njc4OTBhYmNkZWYxMjM0NTY3ODkwYWJjZGVmIiwiYWNjb3VudF9pZCI6IlNhbGlsIiwiZmlsZV90eXBlIjoicmVwb3J0IiwidGltZXN0YW1wIjoxNzM0NzY5NjAwfQ=="
+        },
+        {
+            "account_id": "Salil",
+            "timestamp": "2025-08-23T09:15:33.456789",
+            "conversation_id": "conv_abcdef1234567890abcdef1234567890",
+            "transcript_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252X2FiY2RlZjEyMzQ1Njc4OTBhYmNkZWYxMjM0NTY3ODkwIiwiYWNjb3VudF9pZCI6IlNhbGlsIiwiZmlsZV90eXBlIjoidHJhbnNjcmlwdCIsInRpbWVzdGFtcCI6MTczNDc2OTYwMH0=",
+            "audio_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252X2FiY2RlZjEyMzQ1Njc4OTBhYmNkZWYxMjM0NTY3ODkwIiwiYWNjb3VudF9pZCI6IlNhbGlsIiwiZmlsZV90eXBlIjoiYXVkaW8iLCJ0aW1lc3RhbXAiOjE3MzQ3Njk2MDB9",
+            "report_url": "https://fedfina.bionicaisolutions.com/api/v1/download/secure/eyJ0eXBlIjoiY29udmVyc2F0aW9uX2lkIiwiaWQiOiJjb252X2FiY2RlZjEyMzQ1Njc4OTBhYmNkZWYxMjM0NTY3ODkwIiwiYWNjb3VudF9pZCI6IlNhbGlsIiwiZmlsZV90eXBlIjoicmVwb3J0IiwidGltZXN0YW1wIjoxNzM0NzY5NjAwfQ=="
+        }
+    ]
+}
