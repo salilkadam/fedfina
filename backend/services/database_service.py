@@ -446,6 +446,62 @@ class DatabaseService:
             logger.error(f"Error getting conversations for account {account_id}: {e}")
             return []
     
+    async def get_conversations_by_date(self, target_date: datetime) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get all conversation runs for a specific date, grouped by account
+        
+        Args:
+            target_date: The date to filter by (datetime object)
+            
+        Returns:
+            Dictionary with account_id as key and list of conversations as value
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Convert date to start and end of day
+            start_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = start_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            cursor.execute("""
+                SELECT id, account_id, email_id, conversation_id, created_at,
+                       transcript_url, audio_url, report_url
+                FROM conversation_runs 
+                WHERE created_at >= %s AND created_at <= %s
+                ORDER BY account_id, created_at DESC
+            """, (start_date, end_date))
+            
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+            
+            # Group conversations by account_id
+            conversations_by_account = {}
+            for row in rows:
+                account_id = row[1]
+                conversation = {
+                    "id": row[0],
+                    "account_id": row[1],
+                    "email_id": row[2],
+                    "conversation_id": row[3],
+                    "created_at": row[4],
+                    "transcript_url": row[5],
+                    "audio_url": row[6],
+                    "report_url": row[7]
+                }
+                
+                if account_id not in conversations_by_account:
+                    conversations_by_account[account_id] = []
+                
+                conversations_by_account[account_id].append(conversation)
+            
+            return conversations_by_account
+            
+        except Exception as e:
+            logger.error(f"Error getting conversations for date {target_date}: {e}")
+            return {}
+    
     async def health_check(self) -> Dict[str, Any]:
         """
         Check database health
