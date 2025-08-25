@@ -97,13 +97,22 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
         
-    - name: Extract metadata
-      id: meta
+    - name: Extract metadata for backend
+      id: meta-backend
       uses: docker/metadata-action@v5
       with:
-        images: |
-          ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
-          ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+        images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Extract metadata for frontend
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -115,8 +124,8 @@ jobs:
       with:
         context: ./backend
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
@@ -126,8 +135,8 @@ jobs:
       with:
         context: ./frontend
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
@@ -136,7 +145,8 @@ jobs:
       id: verify
       run: |
         echo "Waiting for images to be available..."
-        echo "Generated tags: ${{ steps.meta.outputs.tags }}"
+        echo "Backend tags: ${{ steps.meta-backend.outputs.tags }}"
+        echo "Frontend tags: ${{ steps.meta-frontend.outputs.tags }}"
         
         # Function to check if image exists
         check_image() {
@@ -163,8 +173,8 @@ jobs:
         }
         
         # Get the first tag for each image (should be the branch-sha format)
-        BACKEND_TAG=$(echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' | grep "${{ env.BACKEND_IMAGE }}" | head -1)
-        FRONTEND_TAG=$(echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' | grep "${{ env.FRONTEND_IMAGE }}" | head -1)
+        BACKEND_TAG=$(echo "${{ steps.meta-backend.outputs.tags }}" | tr ' ' '\n' | head -1)
+        FRONTEND_TAG=$(echo "${{ steps.meta-frontend.outputs.tags }}" | tr ' ' '\n' | head -1)
         
         echo "Backend tag: $BACKEND_TAG"
         echo "Frontend tag: $FRONTEND_TAG"
