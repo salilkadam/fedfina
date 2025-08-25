@@ -132,15 +132,38 @@ jobs:
     - name: Verify images are pushed
       run: |
         echo "Waiting for images to be available..."
-        sleep 30
+        
+        # Function to check if image exists
+        check_image() {
+          local image=$1
+          local max_attempts=10
+          local attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts: Checking $image"
+            if docker pull $image >/dev/null 2>&1; then
+              echo "✅ Image verified: $image"
+              return 0
+            else
+              echo "⏳ Image not yet available: $image"
+              if [ $attempt -lt $max_attempts ]; then
+                sleep 30
+              fi
+            fi
+            attempt=$((attempt + 1))
+          done
+          
+          echo "❌ Failed to verify image after $max_attempts attempts: $image"
+          return 1
+        }
         
         # Verify backend image
-        docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} || exit 1
-        echo "✅ Backend image verified: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}"
+        check_image "${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}" || exit 1
         
         # Verify frontend image  
-        docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} || exit 1
-        echo "✅ Frontend image verified: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}"
+        check_image "${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}" || exit 1
+        
+        echo "🎉 All images verified successfully!"
 
   deploy-staging:
     name: Deploy to Staging (GitOps)
