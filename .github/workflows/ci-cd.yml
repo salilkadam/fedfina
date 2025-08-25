@@ -80,6 +80,9 @@ jobs:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    outputs:
+      backend_tag: ${{ steps.verify.outputs.backend_tag }}
+      frontend_tag: ${{ steps.verify.outputs.frontend_tag }}
     
     steps:
     - name: Checkout code
@@ -130,8 +133,10 @@ jobs:
         platforms: linux/amd64,linux/arm64
 
     - name: Verify images are pushed
+      id: verify
       run: |
         echo "Waiting for images to be available..."
+        echo "Generated tags: ${{ steps.meta.outputs.tags }}"
         
         # Function to check if image exists
         check_image() {
@@ -157,13 +162,24 @@ jobs:
           return 1
         }
         
+        # Get the first tag for each image (should be the branch-sha format)
+        BACKEND_TAG=$(echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' | grep "${{ env.BACKEND_IMAGE }}" | head -1)
+        FRONTEND_TAG=$(echo "${{ steps.meta.outputs.tags }}" | tr ' ' '\n' | grep "${{ env.FRONTEND_IMAGE }}" | head -1)
+        
+        echo "Backend tag: $BACKEND_TAG"
+        echo "Frontend tag: $FRONTEND_TAG"
+        
         # Verify backend image
-        check_image "${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}" || exit 1
+        check_image "$BACKEND_TAG" || exit 1
         
         # Verify frontend image  
-        check_image "${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}" || exit 1
+        check_image "$FRONTEND_TAG" || exit 1
         
         echo "🎉 All images verified successfully!"
+        
+        # Set outputs for deployment jobs
+        echo "backend_tag=$BACKEND_TAG" >> $GITHUB_OUTPUT
+        echo "frontend_tag=$FRONTEND_TAG" >> $GITHUB_OUTPUT
 
   deploy-staging:
     name: Deploy to Staging (GitOps)
@@ -178,8 +194,16 @@ jobs:
       
     - name: Update image tags in staging manifests (GitOps)
       run: |
-        sed -i 's|docker.io/docker4zerocool/fedfina-backend:latest|docker.io/docker4zerocool/fedfina-backend:${{ github.sha }}|g' deploy/deployment-staging.yaml
-        sed -i 's|docker.io/docker4zerocool/fedfina-frontend:latest|docker.io/docker4zerocool/fedfina-frontend:${{ github.sha }}|g' deploy/deployment-staging.yaml
+        # Get the actual generated tags from the build job
+        BACKEND_TAG="${{ needs.build-and-push.outputs.backend_tag }}"
+        FRONTEND_TAG="${{ needs.build-and-push.outputs.frontend_tag }}"
+        
+        echo "Using backend tag: $BACKEND_TAG"
+        echo "Using frontend tag: $FRONTEND_TAG"
+        
+        # Update manifests with actual tags
+        sed -i "s|docker.io/docker4zerocool/fedfina-backend:[^[:space:]]*|$BACKEND_TAG|g" deploy/deployment-staging.yaml
+        sed -i "s|docker.io/docker4zerocool/fedfina-frontend:[^[:space:]]*|$FRONTEND_TAG|g" deploy/deployment-staging.yaml
     
     - name: Commit and push updated staging manifests
       uses: stefanzweifel/git-auto-commit-action@v5
@@ -203,8 +227,16 @@ jobs:
       
     - name: Update image tags in production manifests (GitOps)
       run: |
-        sed -i 's|docker.io/docker4zerocool/fedfina-backend:latest|docker.io/docker4zerocool/fedfina-backend:${{ github.sha }}|g' deploy/deployment-v2.yaml
-        sed -i 's|docker.io/docker4zerocool/fedfina-frontend:latest|docker.io/docker4zerocool/fedfina-frontend:${{ github.sha }}|g' deploy/deployment-v2.yaml
+        # Get the actual generated tags from the build job
+        BACKEND_TAG="${{ needs.build-and-push.outputs.backend_tag }}"
+        FRONTEND_TAG="${{ needs.build-and-push.outputs.frontend_tag }}"
+        
+        echo "Using backend tag: $BACKEND_TAG"
+        echo "Using frontend tag: $FRONTEND_TAG"
+        
+        # Update manifests with actual tags
+        sed -i "s|docker.io/docker4zerocool/fedfina-backend:[^[:space:]]*|$BACKEND_TAG|g" deploy/deployment-v2.yaml
+        sed -i "s|docker.io/docker4zerocool/fedfina-frontend:[^[:space:]]*|$FRONTEND_TAG|g" deploy/deployment-v2.yaml
 
     - name: Commit and push updated production manifests
       uses: stefanzweifel/git-auto-commit-action@v5
