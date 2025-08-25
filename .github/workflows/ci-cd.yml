@@ -16,6 +16,11 @@ on:
         - staging
         - production
 
+# Prevent concurrent runs to avoid race conditions
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: docker.io
   BACKEND_IMAGE: docker4zerocool/fedfina-backend
@@ -124,6 +129,19 @@ jobs:
         cache-to: type=gha,mode=max
         platforms: linux/amd64,linux/arm64
 
+    - name: Verify images are pushed
+      run: |
+        echo "Waiting for images to be available..."
+        sleep 30
+        
+        # Verify backend image
+        docker pull ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }} || exit 1
+        echo "✅ Backend image verified: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:${{ github.sha }}"
+        
+        # Verify frontend image  
+        docker pull ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }} || exit 1
+        echo "✅ Frontend image verified: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:${{ github.sha }}"
+
   deploy-staging:
     name: Deploy to Staging (GitOps)
     needs: build-and-push
@@ -146,6 +164,8 @@ jobs:
         commit_message: "GitOps(staging): update image tags to ${{ github.sha }}"
         branch: develop
         file_pattern: 'deploy/deployment-staging.yaml'
+        # Prevent triggering another workflow run
+        skip_ci: true
 
   deploy-production:
     name: Deploy to Production (GitOps)
@@ -169,3 +189,5 @@ jobs:
         commit_message: "GitOps(prod): update image tags to ${{ github.sha }}"
         branch: main
         file_pattern: 'deploy/deployment-v2.yaml'
+        # Prevent triggering another workflow run
+        skip_ci: true
