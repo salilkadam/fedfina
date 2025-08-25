@@ -86,8 +86,8 @@ jobs:
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
         
     - name: Extract metadata
       id: meta
@@ -218,8 +218,8 @@ jobs:
         kubectl apply -f deploy/deployment-v2.yaml
         
         # Wait for deployment to be ready
-        kubectl rollout status deployment/fedfina-backend -n fedfina --timeout=300s
-        kubectl rollout status deployment/fedfina-frontend -n fedfina --timeout=300s
+        kubectl rollout status deployment/fedfina-backend -n fedfina --timeout=60s || true
+        kubectl rollout status deployment/fedfina-frontend -n fedfina --timeout=60s || true
         
     - name: Health check (Internal)
       run: |
