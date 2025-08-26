@@ -1171,6 +1171,86 @@ async def test_conversation_email(request: TestConversationEmailRequest):
             "error": f"Test conversation email failed: {str(e)}"
         }
 
+@app.post("/api/v1/trigger-conversation-email")
+async def trigger_conversation_email(request: Request):
+    conversation_id = request.query_params.get("conversation_id")
+    if not conversation_id:
+        return {
+            "status": "error",
+            "error": "conversation_id parameter is required"
+        }
+    """Trigger email for an existing conversation by ID"""
+    try:
+        from services.email_service import EmailService
+        from services.database_service import DatabaseService
+        from config import Settings
+        
+        settings = Settings()
+        database_service = DatabaseService(settings)
+        email_service = EmailService(settings)
+        
+        # Get conversation details from database
+        conversation = await database_service.get_conversation_by_id(conversation_id)
+        if not conversation:
+            return {
+                "status": "error",
+                "error": f"Conversation {conversation_id} not found"
+            }
+        
+        # Extract conversation data
+        account_id = conversation.get("account_id")
+        email_id = conversation.get("email_id")
+        
+        if not email_id or email_id == "unknown@example.com":
+            return {
+                "status": "error",
+                "error": f"No valid email address found for conversation {conversation_id}"
+            }
+        
+        # Get conversation artifacts
+        transcript_url = conversation.get("transcript_url")
+        audio_url = conversation.get("audio_url")
+        report_url = conversation.get("report_url")
+        
+        files = {}
+        if transcript_url:
+            files["transcript"] = transcript_url
+        if audio_url:
+            files["audio"] = audio_url
+        if report_url:
+            files["report"] = report_url
+        
+        # Prepare metadata
+        metadata = {
+            "conversation_id": conversation_id,
+            "account_id": account_id,
+            "timestamp": conversation.get("timestamp"),
+            "duration": conversation.get("duration"),
+            "status": conversation.get("status")
+        }
+        
+        # Send conversation report email
+        result = await email_service.send_conversation_report(
+            to_email=email_id,
+            conversation_id=conversation_id,
+            account_id=account_id,
+            files=files,
+            metadata=metadata
+        )
+        
+        return {
+            "status": "success",
+            "message": f"Email triggered for conversation {conversation_id}",
+            "email_result": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Trigger conversation email failed: {e}")
+        return {
+            "status": "error",
+            "error": f"Trigger conversation email failed: {str(e)}"
+        }
+
 # Root endpoint
 @app.get("/")
 async def root():
