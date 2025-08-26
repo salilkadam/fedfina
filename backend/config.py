@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     api_key_header: str = Field(default="X-API-Key", env="API_KEY_HEADER")
     rate_limit_per_minute: int = Field(default=10, env="RATE_LIMIT_PER_MINUTE")
     
+    # Download Token Configuration
+    download_token_expiry_hours: int = Field(default=24, env="DOWNLOAD_TOKEN_EXPIRY_HOURS")
+    
     # Callback Configuration
     callback_enabled: bool = Field(default=True, env="CALLBACK_ENABLED")
     callback_url: str = Field(
@@ -117,6 +120,13 @@ class Settings(BaseSettings):
         """Validate processing timeout"""
         if v <= 0 or v > 60:
             raise ValueError('processing_timeout_minutes must be between 1 and 60')
+        return v
+    
+    @validator('download_token_expiry_hours')
+    def validate_token_expiry(cls, v):
+        """Validate download token expiry hours"""
+        if v <= 0 or v > 168:  # Max 1 week (168 hours)
+            raise ValueError('download_token_expiry_hours must be between 1 and 168')
         return v
     
     class Config:
