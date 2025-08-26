@@ -110,14 +110,14 @@ class HealthChecker:
             }
 
     async def check_email_service(self) -> Dict[str, Any]:
-        """Check email service health (SMTP)"""
+        """Check email service health (SMTP connectivity only - no authentication)"""
         try:
             import smtplib
             import ssl
             import asyncio
             
-            def test_smtp_sync():
-                """Synchronous SMTP test function"""
+            def test_smtp_connectivity():
+                """Test SMTP server connectivity without authentication"""
                 if self.settings.smtp_port == 465:
                     # SSL connection for port 465
                     context = ssl.create_default_context()
@@ -128,7 +128,6 @@ class HealthChecker:
                         timeout=10.0
                     )
                     smtp.ehlo()
-                    smtp.login(self.settings.smtp_username, self.settings.smtp_password)
                     smtp.quit()
                 else:
                     # STARTTLS connection for port 587
@@ -139,22 +138,22 @@ class HealthChecker:
                     )
                     smtp.ehlo()
                     smtp.starttls()
-                    smtp.login(self.settings.smtp_username, self.settings.smtp_password)
+                    smtp.ehlo()  # Second EHLO after STARTTLS
                     smtp.quit()
             
-            # Run synchronous SMTP test in thread pool
+            # Run synchronous SMTP connectivity test in thread pool
             loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, test_smtp_sync)
+            await loop.run_in_executor(None, test_smtp_connectivity)
             
             return {
                 "status": "healthy",
-                "message": "SMTP connection successful"
+                "message": "SMTP server reachable"
             }
         except Exception as e:
             logger.error(f"Email service health check failed: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"SMTP connection failed: {str(e)}"
+                "message": f"SMTP server unreachable: {str(e)}"
             }
     
     async def get_processing_metrics(self) -> Dict[str, Any]:
