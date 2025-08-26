@@ -81,7 +81,9 @@ def generate_download_token(conversation_id: str, account_id: str, file_type: st
                 'conversation_id': conversation_id,
                 'account_id': account_id,
                 'file_type': file_type,
-                'expires_at': expires_at
+                'expires_at': expires_at,
+                'usage_count': 0,
+                'max_uses': settings.download_token_max_uses
             }
             # Store with expiration (Redis will auto-delete expired tokens)
             redis_client.setex(
@@ -97,7 +99,9 @@ def generate_download_token(conversation_id: str, account_id: str, file_type: st
                 'conversation_id': conversation_id,
                 'account_id': account_id,
                 'file_type': file_type,
-                'expires_at': expires_at
+                'expires_at': expires_at,
+                'usage_count': 0,
+                'max_uses': settings.download_token_max_uses
             }
             logger.debug(f"Token stored in memory (fallback): {token[:10]}...")
     else:
@@ -106,7 +110,9 @@ def generate_download_token(conversation_id: str, account_id: str, file_type: st
             'conversation_id': conversation_id,
             'account_id': account_id,
             'file_type': file_type,
-            'expires_at': expires_at
+            'expires_at': expires_at,
+            'usage_count': 0,
+            'max_uses': settings.download_token_max_uses
         }
         logger.debug(f"Token stored in memory: {token[:10]}...")
     
@@ -893,19 +899,42 @@ async def download_file_secure(token: str) -> Response:
         if not file_data:
             raise HTTPException(status_code=404, detail="File not found")
         
-        # Remove token after successful download (one-time use)
+        # Increment usage count and check if token should be deleted
         redis_client = get_redis_client()
         if redis_client:
             try:
-                redis_client.delete(f"download_token:{token}")
-                logger.debug(f"Token deleted from Redis: {token[:10]}...")
+                # Get current token data
+                token_data_json = redis_client.get(f"download_token:{token}")
+                if token_data_json:
+                    token_data = json.loads(token_data_json)
+                    token_data['usage_count'] = token_data.get('usage_count', 0) + 1
+                    
+                    if token_data['usage_count'] >= token_data.get('max_uses', settings.download_token_max_uses):
+                        # Delete token after max uses reached
+                        redis_client.delete(f"download_token:{token}")
+                        logger.debug(f"Token deleted from Redis after {token_data['usage_count']} uses: {token[:10]}...")
+                    else:
+                        # Update token with new usage count
+                        redis_client.setex(
+                            f"download_token:{token}",
+                            settings.download_token_expiry_hours * 60 * 60,  # TTL in seconds
+                            json.dumps(token_data)
+                        )
+                        logger.debug(f"Token usage count updated to {token_data['usage_count']} in Redis: {token[:10]}...")
             except Exception as e:
-                logger.error(f"Failed to delete token from Redis: {e}")
+                logger.error(f"Failed to update token usage in Redis: {e}")
         else:
-            # Fallback to in-memory deletion
+            # Fallback to in-memory usage tracking
             if token in download_tokens:
-                del download_tokens[token]
-                logger.debug(f"Token deleted from memory: {token[:10]}...")
+                download_tokens[token]['usage_count'] = download_tokens[token].get('usage_count', 0) + 1
+                
+                usage_count = download_tokens[token]['usage_count']
+                if usage_count >= download_tokens[token].get('max_uses', settings.download_token_max_uses):
+                    # Delete token after max uses reached
+                    del download_tokens[token]
+                    logger.debug(f"Token deleted from memory after {usage_count} uses: {token[:10]}...")
+                else:
+                    logger.debug(f"Token usage count updated to {download_tokens[token]['usage_count']} in memory: {token[:10]}...")
         
         return Response(
             content=file_data['content'],

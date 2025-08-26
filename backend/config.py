@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     
     # Download Token Configuration
     download_token_expiry_hours: int = Field(default=24, env="DOWNLOAD_TOKEN_EXPIRY_HOURS")
+    download_token_max_uses: int = Field(default=10, env="DOWNLOAD_TOKEN_MAX_USES")
     
     # Callback Configuration
     callback_enabled: bool = Field(default=True, env="CALLBACK_ENABLED")
@@ -128,6 +129,13 @@ class Settings(BaseSettings):
         """Validate download token expiry hours"""
         if v <= 0 or v > 168:  # Max 1 week (168 hours)
             raise ValueError('download_token_expiry_hours must be between 1 and 168')
+        return v
+    
+    @validator('download_token_max_uses')
+    def validate_token_max_uses(cls, v):
+        """Validate download token max uses"""
+        if v <= 0 or v > 100:  # Max 100 uses
+            raise ValueError('download_token_max_uses must be between 1 and 100')
         return v
     
     class Config:

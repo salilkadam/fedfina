@@ -24,7 +24,7 @@ spec:
         - name: regcred
       containers:
         - name: backend
-          image: 
+          image: docker.io/docker4zerocool/fedfina-backend:main-56a20a3
           ports:
             - containerPort: 8000
           env:
@@ -165,7 +165,7 @@ spec:
         - name: regcred
       containers:
         - name: frontend
-          image: 
+          image: docker.io/docker4zerocool/fedfina-frontend:main-feef1ff
           ports:
             - containerPort: 3000
           env:
@@ -235,6 +235,9 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
 spec:
   tls:
   - hosts:
