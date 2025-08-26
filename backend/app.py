@@ -12,6 +12,8 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import secrets
 import time
+import json
+import redis
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request, Body, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -28,8 +30,27 @@ logger = logging.getLogger(__name__)
 # Global state for application lifecycle
 app_state: Dict[str, Any] = {}
 
-# In-memory storage for download tokens (in production, use Redis or database)
+# In-memory storage for download tokens (fallback)
 download_tokens: Dict[str, Dict[str, Any]] = {}
+
+# Global Redis client instance
+redis_client = None
+
+def get_redis_client():
+    """Get Redis client instance for token storage"""
+    global redis_client
+    if redis_client is None:
+        try:
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+            redis_client = redis.from_url(redis_url, decode_responses=True)
+            # Test connection
+            redis_client.ping()
+            logger.info("Redis connection established for token storage")
+        except Exception as e:
+            logger.error(f"Failed to connect to Redis: {e}")
+            # Fallback to in-memory storage
+            redis_client = None
+    return redis_client
 
 def generate_download_token(conversation_id: str, account_id: str, file_type: str) -> str:
     """
@@ -49,12 +70,42 @@ def generate_download_token(conversation_id: str, account_id: str, file_type: st
     token = secrets.token_urlsafe(32)
     expires_at = time.time() + (settings.download_token_expiry_hours * 60 * 60)  # Configurable expiry
     
-    download_tokens[token] = {
+    # Store token in Redis for shared access across pods
+    redis_client = get_redis_client()
+    if redis_client:
+        try:
+            token_data = {
+                'conversation_id': conversation_id,
+                'account_id': account_id,
+                'file_type': file_type,
+                'expires_at': expires_at
+            }
+            # Store with expiration (Redis will auto-delete expired tokens)
+            redis_client.setex(
+                f"download_token:{token}",
+                settings.download_token_expiry_hours * 60 * 60,  # TTL in seconds
+                json.dumps(token_data)
+            )
+            logger.debug(f"Token stored in Redis: {token[:10]}...")
+        except Exception as e:
+            logger.error(f"Failed to store token in Redis: {e}")
+            # Fallback to in-memory storage
+            download_tokens[token] = {
+                'conversation_id': conversation_id,
+                'account_id': account_id,
+                'file_type': file_type,
+                'expires_at': expires_at
+            }
+            logger.debug(f"Token stored in memory (fallback): {token[:10]}...")
+    else:
+        # Fallback to in-memory storage
+        download_tokens[token] = {
             'conversation_id': conversation_id,
             'account_id': account_id,
             'file_type': file_type,
             'expires_at': expires_at
-    }
+        }
+        logger.debug(f"Token stored in memory: {token[:10]}...")
     
     return token
 
@@ -68,17 +119,41 @@ def validate_download_token(token: str) -> Optional[Dict[str, Any]]:
     Returns:
         Token data if valid, None otherwise
     """
-    if token not in download_tokens:
-        return None
-    
-    token_data = download_tokens[token]
-    
-    # Check if token has expired
-    if time.time() > token_data['expires_at']:
-        del download_tokens[token]
-        return None
-    
-    return token_data
+    redis_client = get_redis_client()
+    if redis_client:
+        try:
+            # Try Redis first
+            token_data_json = redis_client.get(f"download_token:{token}")
+            if token_data_json:
+                try:
+                    token_data = json.loads(token_data_json)
+                    # Check if token has expired (additional safety check)
+                    if time.time() > token_data['expires_at']:
+                        redis_client.delete(f"download_token:{token}")
+                        return None
+                    return token_data
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.error(f"Invalid token data format: {e}")
+                    redis_client.delete(f"download_token:{token}")
+                    return None
+            return None
+        except Exception as e:
+            logger.error(f"Redis error during token validation: {e}")
+            # Fallback to in-memory storage
+            pass
+    else:
+        # Fallback to in-memory storage
+        if token not in download_tokens:
+            return None
+        
+        token_data = download_tokens[token]
+        
+        # Check if token has expired
+        if time.time() > token_data['expires_at']:
+            del download_tokens[token]
+            return None
+        
+        return token_data
 
 
 @asynccontextmanager
@@ -815,10 +890,19 @@ async def download_file_secure(token: str) -> Response:
         if not file_data:
             raise HTTPException(status_code=404, detail="File not found")
         
-        # Allow token reuse for full 24-hour expiry period to handle pod sharing issues
-        # Instead of deleting immediately, we'll let it expire naturally
-        # This helps when tokens are generated by one pod and accessed by another
-        # del download_tokens[token]  # Commented out to allow token reuse for full expiry period
+        # Remove token after successful download (one-time use)
+        redis_client = get_redis_client()
+        if redis_client:
+            try:
+                redis_client.delete(f"download_token:{token}")
+                logger.debug(f"Token deleted from Redis: {token[:10]}...")
+            except Exception as e:
+                logger.error(f"Failed to delete token from Redis: {e}")
+        else:
+            # Fallback to in-memory deletion
+            if token in download_tokens:
+                del download_tokens[token]
+                logger.debug(f"Token deleted from memory: {token[:10]}...")
         
         return Response(
             content=file_data['content'],
