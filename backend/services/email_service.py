@@ -221,7 +221,7 @@ class EmailService:
             download_links_html += """
                 </div>
                 <div class="download-note">
-                    <p><strong>Security Note:</strong> These links are secure and will expire after 24 hours or after first use. No authentication required.</p>
+                    <p><strong>Security Note:</strong> These links are secure and will expire after 24 hours or after 10 downloads. No authentication required.</p>
                 </div>
             </div>
             """
@@ -230,41 +230,90 @@ class EmailService:
         <html>
         <head>
             <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }}
-                .header {{ background-color: #f8f9fa; padding: 20px; border-radius: 5px; text-align: center; }}
-                .content {{ padding: 20px; }}
-                .metadata {{ background-color: #f1f3f4; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-                .footer {{ background-color: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 12px; color: #666; text-align: center; }}
-                .highlight {{ color: #007bff; font-weight: bold; }}
-                .download-section {{ background-color: #e8f4fd; padding: 20px; border-radius: 5px; margin: 20px 0; }}
+                body {{ 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    line-height: 1.6; 
+                    color: #1f2937; 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background-color: #f9fafb;
+                }}
+                .header {{ 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    color: white; 
+                    padding: 30px 20px; 
+                    border-radius: 12px 12px 0 0; 
+                    text-align: center; 
+                    margin-bottom: 0;
+                }}
+                .content {{ 
+                    padding: 30px 20px; 
+                    background-color: white; 
+                    border-radius: 0 0 12px 12px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+                }}
+                .metadata {{ 
+                    background-color: #f3f4f6; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    margin: 20px 0; 
+                    border-left: 4px solid #3b82f6;
+                }}
+                .footer {{ 
+                    background-color: #f8f9fa; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    font-size: 12px; 
+                    color: #6b7280; 
+                    text-align: center; 
+                    margin-top: 20px;
+                    border: 1px solid #e5e7eb;
+                }}
+                .highlight {{ color: #3b82f6; font-weight: 600; }}
+                .download-section {{ 
+                    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); 
+                    padding: 25px; 
+                    border-radius: 12px; 
+                    margin: 25px 0; 
+                    border: 1px solid #93c5fd;
+                }}
                 .download-links {{ display: flex; flex-direction: column; gap: 15px; }}
                 .download-item {{ text-align: center; }}
                 .download-button {{ 
                     display: inline-block; 
-                    background-color: #007bff; 
-                    color: white; 
-                    padding: 12px 24px; 
+                    background-color: #2563eb; 
+                    color: #ffffff; 
+                    padding: 15px 30px; 
                     text-decoration: none; 
-                    border-radius: 5px; 
-                    font-weight: bold;
-                    transition: background-color 0.3s;
+                    border-radius: 8px; 
+                    font-weight: 600;
+                    font-size: 16px;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    border: 2px solid #1d4ed8;
+                    transition: all 0.3s ease;
                 }}
-                .download-button:hover {{ background-color: #0056b3; }}
+                .download-button:hover {{ 
+                    background-color: #1d4ed8; 
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+                }}
                 .download-description {{ margin-top: 5px; font-size: 14px; color: #666; }}
                 .download-note {{ 
-                    background-color: #fff3cd; 
-                    border: 1px solid #ffeaa7; 
-                    padding: 10px; 
-                    border-radius: 3px; 
-                    margin-top: 15px;
-                    font-size: 12px;
+                    background-color: #fef3c7; 
+                    border: 1px solid #f59e0b; 
+                    padding: 15px; 
+                    border-radius: 8px; 
+                    margin-top: 20px;
+                    font-size: 13px;
+                    color: #92400e;
                 }}
                 .file-info {{ 
-                    background-color: #d4edda; 
-                    border: 1px solid #c3e6cb; 
-                    padding: 10px; 
-                    border-radius: 3px; 
-                    margin: 10px 0;
+                    background-color: #d1fae5; 
+                    border: 1px solid #10b981; 
+                    padding: 15px; 
+                    border-radius: 8px; 
+                    margin: 15px 0;
+                    color: #065f46;
                 }}
             </style>
         </head>
