@@ -886,6 +886,81 @@ async def get_conversations_by_account(account_id: str):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+@app.get("/api/v1/conversations-by-date")
+async def get_conversations_by_date(date: str = None):
+    """
+    Get all conversation runs for a specific date, grouped by account
+    
+    Args:
+        date: Date in YYYY-MM-DD format (defaults to today if not provided)
+        
+    Returns:
+        JSON object with accounts as keys and conversation arrays as values
+    """
+    try:
+        from services.database_service import DatabaseService
+        from config import Settings
+        from datetime import datetime, date as date_type
+        
+        settings = Settings()
+        db_service = DatabaseService(settings)
+        
+        # Parse date parameter or default to today
+        if date:
+            try:
+                target_date = datetime.strptime(date, "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        else:
+            target_date = datetime.now()
+        
+        # Get conversation runs for the date, grouped by account
+        conversations_by_account = await db_service.get_conversations_by_date(target_date)
+        
+        # Format the response with secure URLs
+        formatted_response = {}
+        total_conversations = 0
+        
+        for account_id, conversations in conversations_by_account.items():
+            account_conversations = []
+            for conv in conversations:
+                # Generate secure download tokens for each file type
+                transcript_token = generate_download_token(conv['conversation_id'], conv['account_id'], 'transcript')
+                audio_token = generate_download_token(conv['conversation_id'], conv['account_id'], 'audio')
+                report_token = generate_download_token(conv['conversation_id'], conv['account_id'], 'report')
+                
+                # Create secure download URLs
+                base_url = "https://fedfina.bionicaisolutions.com"
+                account_conversations.append({
+                    "account_id": conv['account_id'],
+                    "timestamp": conv['created_at'].isoformat() if conv['created_at'] else None,
+                    "conversation_id": conv['conversation_id'],
+                    "transcript_url": f"{base_url}/api/v1/download/secure/{transcript_token}",
+                    "audio_url": f"{base_url}/api/v1/download/secure/{audio_token}",
+                    "report_url": f"{base_url}/api/v1/download/secure/{report_token}"
+                })
+            
+            formatted_response[account_id] = {
+                "count": len(account_conversations),
+                "conversations": account_conversations
+            }
+            total_conversations += len(account_conversations)
+        
+        return {
+            "status": "success",
+            "date": target_date.strftime("%Y-%m-%d"),
+            "total_conversations": total_conversations,
+            "total_accounts": len(formatted_response),
+            "accounts": formatted_response
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving conversations for date {date}: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 # Root endpoint
 @app.get("/")
 async def root():
