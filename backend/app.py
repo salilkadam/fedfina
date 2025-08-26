@@ -306,7 +306,7 @@ async def elevenlabs_webhook(
             webhook_data = body.get('data', {})
             conversation_id = webhook_data.get('conversation_id')
             metadata = webhook_data.get('metadata', {})
-    else:
+        else:
             # Direct format: {"conversation_id": "...", "metadata": {...}}
             conversation_id = body.get('conversation_id')
             metadata = body.get('metadata', {})
