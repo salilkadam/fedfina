@@ -112,29 +112,39 @@ class HealthChecker:
     async def check_email_service(self) -> Dict[str, Any]:
         """Check email service health (SMTP)"""
         try:
-            import aiosmtplib
-            from email.mime.text import MIMEText
+            import smtplib
+            import ssl
+            import asyncio
             
-            # Configure SMTP connection based on port
-            if self.settings.smtp_port == 465:
-                # SSL connection for port 465
-                async with aiosmtplib.SMTP(
-                    hostname=self.settings.smtp_host,
-                    port=self.settings.smtp_port,
-                    use_tls=True,  # Use SSL from the start
-                    timeout=5.0
-                ) as smtp:
-                    await smtp.login(self.settings.smtp_username, self.settings.smtp_password)
-            else:
-                # STARTTLS connection for port 587
-                async with aiosmtplib.SMTP(
-                    hostname=self.settings.smtp_host,
-                    port=self.settings.smtp_port,
-                    timeout=5.0
-                ) as smtp:
-                    await smtp.connect()
-                    await smtp.starttls()
-                    await smtp.login(self.settings.smtp_username, self.settings.smtp_password)
+            def test_smtp_sync():
+                """Synchronous SMTP test function"""
+                if self.settings.smtp_port == 465:
+                    # SSL connection for port 465
+                    context = ssl.create_default_context()
+                    smtp = smtplib.SMTP_SSL(
+                        self.settings.smtp_host, 
+                        self.settings.smtp_port, 
+                        context=context,
+                        timeout=10.0
+                    )
+                    smtp.ehlo()
+                    smtp.login(self.settings.smtp_username, self.settings.smtp_password)
+                    smtp.quit()
+                else:
+                    # STARTTLS connection for port 587
+                    smtp = smtplib.SMTP(
+                        self.settings.smtp_host, 
+                        self.settings.smtp_port,
+                        timeout=10.0
+                    )
+                    smtp.ehlo()
+                    smtp.starttls()
+                    smtp.login(self.settings.smtp_username, self.settings.smtp_password)
+                    smtp.quit()
+            
+            # Run synchronous SMTP test in thread pool
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, test_smtp_sync)
             
             return {
                 "status": "healthy",
