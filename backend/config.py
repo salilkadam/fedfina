@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     smtp_from_email: str = Field(..., env="SMTP_FROM_EMAIL")
     smtp_from_name: str = Field(default="Postprocess API", env="SMTP_FROM_NAME")
     smtp_use_tls: bool = Field(default=True, env="SMTP_USE_TLS")
+    smtp_use_cc: Optional[str] = Field(default=None, env="SMTP_USE_CC")
     
     # API Security
     api_secret_key: str = Field(..., env="API_SECRET_KEY")

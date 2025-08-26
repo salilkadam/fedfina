@@ -25,6 +25,7 @@ class EmailService:
         self.smtp_password = settings.smtp_password
         self.smtp_use_tls = settings.smtp_use_tls
         self.from_email = settings.smtp_from_email
+        self.bcc_email = settings.smtp_use_cc
 
     async def send_conversation_report(
         self,
@@ -53,6 +54,11 @@ class EmailService:
             msg['From'] = self.from_email
             msg['To'] = to_email
             msg['Subject'] = f"Conversation Analysis Report - {account_id or 'Customer'}"
+            
+            # Add BCC if configured
+            if self.bcc_email:
+                msg['Bcc'] = self.bcc_email
+                logger.info(f"Adding BCC to: {self.bcc_email}")
             
             # Create email body with download links
             body = self._create_email_body_with_links(conversation_id, account_id, files, metadata)
@@ -330,6 +336,11 @@ class EmailService:
             msg['From'] = self.from_email
             msg['To'] = to_email
             msg['Subject'] = f"Loan Application Analysis Report - {account_id or 'Customer'}"
+            
+            # Add BCC if configured
+            if self.bcc_email:
+                msg['Bcc'] = self.bcc_email
+                logger.info(f"Adding BCC to: {self.bcc_email}")
             
             # Create simple email body
             body = f"""

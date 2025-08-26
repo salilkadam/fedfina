@@ -36,6 +36,7 @@ print_error() {
 print_status "Testing Email Service Fix"
 print_status "API URL: $API_URL"
 print_status "Test Email: $TEST_EMAIL"
+print_status "BCC Email: Will be sent to SMTP_USE_CC if configured"
 
 # Test 1: Health Check
 print_status "Test 1: Checking email service health..."

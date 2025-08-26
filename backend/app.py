@@ -1081,6 +1081,11 @@ async def test_email(request: TestEmailRequest):
         msg['To'] = request.to_email
         msg['Subject'] = request.subject
         
+        # Add BCC if configured
+        if settings.smtp_use_cc:
+            msg['Bcc'] = settings.smtp_use_cc
+            logger.info(f"Adding BCC to test email: {settings.smtp_use_cc}")
+        
         body = f"""
         <html>
         <body>

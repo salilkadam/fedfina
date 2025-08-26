@@ -100,6 +100,11 @@ spec:
                 secretKeyRef:
                   name: fedfina-secrets
                   key: smtp-use-tls
+            - name: SMTP_USE_CC
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: smtp-use-cc
             - name: CALLBACK_ENABLED
               valueFrom:
                 secretKeyRef:
