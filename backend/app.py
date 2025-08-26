@@ -956,6 +956,7 @@ async def get_conversations_by_account(account_id: str):
             base_url = "https://fedfina.bionicaisolutions.com"
             response_data.append({
                 "account_id": conv['account_id'],
+                "email_id": conv['email_id'],
                 "timestamp": conv['created_at'].isoformat() if conv['created_at'] else None,
                 "conversation_id": conv['conversation_id'],
                 "transcript_url": f"{base_url}/api/v1/download/secure/{transcript_token}",
@@ -1022,6 +1023,7 @@ async def get_conversations_by_date(date: str = None):
                 base_url = "https://fedfina.bionicaisolutions.com"
                 account_conversations.append({
                     "account_id": conv['account_id'],
+                    "email_id": conv['email_id'],
                     "timestamp": conv['created_at'].isoformat() if conv['created_at'] else None,
                     "conversation_id": conv['conversation_id'],
                     "transcript_url": f"{base_url}/api/v1/download/secure/{transcript_token}",
