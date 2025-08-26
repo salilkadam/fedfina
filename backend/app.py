@@ -1107,28 +1107,41 @@ async def test_email(request: TestEmailRequest):
         
         msg.attach(MIMEText(body, 'html'))
         
-        # Send email using the same logic as the email service
-        if settings.smtp_port == 465:
-            # SSL connection for port 465
-            async with aiosmtplib.SMTP(
-                hostname=settings.smtp_host,
-                port=settings.smtp_port,
-                use_tls=True,  # Use SSL from the start
-                timeout=30.0
-            ) as smtp:
-                await smtp.login(settings.smtp_username, settings.smtp_password)
-                await smtp.send_message(msg)
-        else:
-            # STARTTLS connection for port 587
-            async with aiosmtplib.SMTP(
-                hostname=settings.smtp_host,
-                port=settings.smtp_port,
-                timeout=30.0
-            ) as smtp:
-                await smtp.connect()
-                await smtp.starttls()
-                await smtp.login(settings.smtp_username, settings.smtp_password)
-                await smtp.send_message(msg)
+        # Send email using synchronous SMTP in executor
+        import smtplib
+        import ssl
+        import asyncio
+        
+        def send_test_email_sync():
+            """Synchronous test email sending function"""
+            if settings.smtp_port == 465:
+                # SSL connection for port 465
+                context = ssl.create_default_context()
+                smtp = smtplib.SMTP_SSL(
+                    settings.smtp_host,
+                    settings.smtp_port,
+                    context=context,
+                    timeout=30.0
+                )
+                smtp.login(settings.smtp_username, settings.smtp_password)
+                smtp.send_message(msg)
+                smtp.quit()
+            else:
+                # STARTTLS connection for port 587
+                smtp = smtplib.SMTP(
+                    settings.smtp_host,
+                    settings.smtp_port,
+                    timeout=30.0
+                )
+                smtp.ehlo()
+                smtp.starttls()
+                smtp.login(settings.smtp_username, settings.smtp_password)
+                smtp.send_message(msg)
+                smtp.quit()
+        
+        # Run synchronous SMTP in thread pool
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, send_test_email_sync)
         
         return {
             "status": "success",
