@@ -190,3 +190,4 @@ spec:
 The FedFina application is properly deployed and accessible via the configured ingress at `http://fedfina-s.bionicaisolutions.com`.
 
 **Note:** While the ingress is working perfectly, there are some service dependency issues (MinIO and SMTP) that should be addressed for full application functionality.
+

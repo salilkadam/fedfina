@@ -142,3 +142,4 @@ kubectl rollout status deployment/fedfina-frontend -n fedfina
 3. Update any external references to use the new domain
 4. Consider updating DNS records if needed
 5. Monitor the application for any issues after the change
+

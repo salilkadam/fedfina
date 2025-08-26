@@ -14,6 +14,9 @@ import secrets
 import time
 import json
 import redis
+import aiosmtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Request, Body, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -1046,6 +1049,120 @@ async def get_conversations_by_date(date: str = None):
         logger.error(f"Error retrieving conversations for date {date}: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+
+# Test email endpoints
+class TestEmailRequest(BaseModel):
+    """Request model for test email endpoint"""
+    to_email: str = Field(..., description="Recipient email address")
+    subject: str = Field(..., description="Email subject")
+    message: str = Field(..., description="Email message content")
+
+class TestConversationEmailRequest(BaseModel):
+    """Request model for test conversation email endpoint"""
+    to_email: str = Field(..., description="Recipient email address")
+    conversation_id: str = Field(..., description="Test conversation ID")
+    account_id: str = Field(..., description="Test account ID")
+    files: Dict[str, str] = Field(..., description="Test file URLs")
+    metadata: Dict[str, Any] = Field(..., description="Test metadata")
+
+@app.post("/api/v1/test-email")
+async def test_email(request: TestEmailRequest):
+    """Test email service with simple message"""
+    try:
+        from services.email_service import EmailService
+        from config import Settings
+        
+        settings = Settings()
+        email_service = EmailService(settings)
+        
+        # Create a simple test email
+        msg = MIMEMultipart()
+        msg['From'] = settings.smtp_from_email
+        msg['To'] = request.to_email
+        msg['Subject'] = request.subject
+        
+        body = f"""
+        <html>
+        <body>
+            <h2>Email Service Test</h2>
+            <p>{request.message}</p>
+            <p><strong>Test Details:</strong></p>
+            <ul>
+                <li>SMTP Host: {settings.smtp_host}</li>
+                <li>SMTP Port: {settings.smtp_port}</li>
+                <li>From Email: {settings.smtp_from_email}</li>
+                <li>Test Time: {datetime.now().isoformat()}</li>
+            </ul>
+            <p>If you received this email, the SMTP configuration is working correctly!</p>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        # Send email using the same logic as the email service
+        if settings.smtp_port == 465:
+            # SSL connection for port 465
+            async with aiosmtplib.SMTP(
+                hostname=settings.smtp_host,
+                port=settings.smtp_port,
+                use_tls=True,  # Use SSL from the start
+                timeout=30.0
+            ) as smtp:
+                await smtp.login(settings.smtp_username, settings.smtp_password)
+                await smtp.send_message(msg)
+        else:
+            # STARTTLS connection for port 587
+            async with aiosmtplib.SMTP(
+                hostname=settings.smtp_host,
+                port=settings.smtp_port,
+                timeout=30.0
+            ) as smtp:
+                await smtp.connect()
+                await smtp.starttls()
+                await smtp.login(settings.smtp_username, settings.smtp_password)
+                await smtp.send_message(msg)
+        
+        return {
+            "status": "success",
+            "message": f"Test email sent successfully to {request.to_email}",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Test email failed: {e}")
+        return {
+            "status": "error",
+            "error": f"Test email failed: {str(e)}"
+        }
+
+@app.post("/api/v1/test-conversation-email")
+async def test_conversation_email(request: TestConversationEmailRequest):
+    """Test email service with conversation report format"""
+    try:
+        from services.email_service import EmailService
+        from config import Settings
+        
+        settings = Settings()
+        email_service = EmailService(settings)
+        
+        # Send conversation report email
+        result = await email_service.send_conversation_report(
+            to_email=request.to_email,
+            conversation_id=request.conversation_id,
+            account_id=request.account_id,
+            files=request.files,
+            metadata=request.metadata
+        )
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Test conversation email failed: {e}")
+        return {
+            "status": "error",
+            "error": f"Test conversation email failed: {str(e)}"
+        }
 
 # Root endpoint
 @app.get("/")

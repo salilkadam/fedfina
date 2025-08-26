@@ -217,3 +217,4 @@ kubectl get secret fedfina-secrets -n fedfina -o yaml
 **Overall Status:** ✅ **FULLY OPERATIONAL**
 
 The MinIO connectivity has been successfully updated with the new credentials and is working perfectly with both direct access and through the FedFina application.
+

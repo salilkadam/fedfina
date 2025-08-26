@@ -219,3 +219,4 @@ echo "For detailed debugging, check:"
 echo "1. Application logs: kubectl logs -n fedfina deployment/fedfina-backend"
 echo "2. API documentation: Check the backend code for endpoint specifications"
 echo "3. Database status: Check if conversation exists in the database"
+

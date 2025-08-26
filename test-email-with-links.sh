@@ -183,3 +183,4 @@ print_success "Email with download links functionality is ready for use!"
 echo ""
 echo "To test the actual email sending, ensure SMTP is configured properly."
 echo "The email will contain secure download links for all generated files."
+

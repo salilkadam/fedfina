@@ -142,3 +142,4 @@ print_status "To rollback if needed:"
 echo "kubectl apply -f backup-ingress-*.yaml"
 echo "kubectl apply -f backup-backend-*.yaml"
 echo "kubectl apply -f backup-frontend-*.yaml"
+

@@ -109,3 +109,4 @@ openssl s_client -connect "smtp.gmail.com:465" -starttls smtp
 - Use `--insecure` flag with MinIO client for self-signed certificates
 - SMTP connectivity is confirmed but actual email sending should be tested
 - Both services are ready for application use
+

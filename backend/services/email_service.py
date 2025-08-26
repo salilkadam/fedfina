@@ -406,15 +406,26 @@ class EmailService:
             Dict containing the test result
         """
         try:
-            async with aiosmtplib.SMTP(
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                use_tls=(self.smtp_port != 465),  # True for TLS (587), False for SSL (465)
-                timeout=10.0
-            ) as smtp:
-                await smtp.connect()
-                await smtp.login(self.smtp_username, self.smtp_password)
-                await smtp.quit()
+            # Configure SMTP connection based on port
+            if self.smtp_port == 465:
+                # SSL connection for port 465
+                async with aiosmtplib.SMTP(
+                    hostname=self.smtp_host,
+                    port=self.smtp_port,
+                    use_tls=True,  # Use SSL from the start
+                    timeout=10.0
+                ) as smtp:
+                    await smtp.login(self.smtp_username, self.smtp_password)
+            else:
+                # STARTTLS connection for port 587
+                async with aiosmtplib.SMTP(
+                    hostname=self.smtp_host,
+                    port=self.smtp_port,
+                    timeout=10.0
+                ) as smtp:
+                    await smtp.connect()
+                    await smtp.starttls()
+                    await smtp.login(self.smtp_username, self.smtp_password)
             
             return {
                 "status": "success",

@@ -227,3 +227,4 @@ echo ""
 print_status "To test MinIO connectivity directly:"
 echo "mc alias set test https://$MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET_KEY --insecure"
 echo "mc ls test --insecure"
+

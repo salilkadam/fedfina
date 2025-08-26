@@ -115,18 +115,26 @@ class HealthChecker:
             import aiosmtplib
             from email.mime.text import MIMEText
             
-            # Test SMTP connection by creating a client
-            smtp = aiosmtplib.SMTP(
-                hostname=self.settings.smtp_host,
-                port=self.settings.smtp_port,
-                use_tls=self.settings.smtp_use_tls,
-                timeout=5.0
-            )
-            
-            # Connect and authenticate
-            await smtp.connect()
-            await smtp.login(self.settings.smtp_username, self.settings.smtp_password)
-            await smtp.quit()
+            # Configure SMTP connection based on port
+            if self.settings.smtp_port == 465:
+                # SSL connection for port 465
+                async with aiosmtplib.SMTP(
+                    hostname=self.settings.smtp_host,
+                    port=self.settings.smtp_port,
+                    use_tls=True,  # Use SSL from the start
+                    timeout=5.0
+                ) as smtp:
+                    await smtp.login(self.settings.smtp_username, self.settings.smtp_password)
+            else:
+                # STARTTLS connection for port 587
+                async with aiosmtplib.SMTP(
+                    hostname=self.settings.smtp_host,
+                    port=self.settings.smtp_port,
+                    timeout=5.0
+                ) as smtp:
+                    await smtp.connect()
+                    await smtp.starttls()
+                    await smtp.login(self.settings.smtp_username, self.settings.smtp_password)
             
             return {
                 "status": "healthy",

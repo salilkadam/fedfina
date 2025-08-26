@@ -185,3 +185,4 @@ if [ "$SMTP_USE_TLS" = "true" ]; then
 else
     echo "telnet $SMTP_SERVER $SMTP_PORT"
 fi
+

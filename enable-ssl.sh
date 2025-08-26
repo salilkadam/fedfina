@@ -196,3 +196,4 @@ echo ""
 print_status "To check ingress status:"
 echo "kubectl get ingress -n fedfina"
 echo "kubectl describe ingress fedfina-ingress -n fedfina"
+
