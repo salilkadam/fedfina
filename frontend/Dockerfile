@@ -1,5 +1,5 @@
 # Use official Node.js LTS image (x86)
-FROM --platform=linux/amd64 node:20-alpine as build
+FROM --platform=linux/amd64 node:20-alpine AS build
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code
 COPY . .
