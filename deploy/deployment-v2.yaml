@@ -24,7 +24,7 @@ spec:
         - name: regcred
       containers:
         - name: backend
-          image: 
+          image: docker.io/docker4zerocool/fedfina-backend:latest
           ports:
             - containerPort: 8000
           env:
@@ -160,7 +160,7 @@ spec:
         - name: regcred
       containers:
         - name: frontend
-          image: 
+          image: docker.io/docker4zerocool/fedfina-frontend:latest
           ports:
             - containerPort: 3000
           env:
