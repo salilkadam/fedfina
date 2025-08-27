@@ -403,23 +403,35 @@ class DatabaseService:
     
     async def get_conversations_by_account(self, account_id: str) -> List[Dict[str, Any]]:
         """
-        Get all conversation runs for a specific account ID
+        Get all conversation runs for a specific account ID, returning only the latest record per conversation_id
         
         Args:
             account_id: The account ID to filter by
             
         Returns:
-            List of conversation records with URLs
+            List of conversation records with URLs (latest per conversation_id)
         """
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
             
+            # Use window function to get only the latest record per conversation_id
             cursor.execute("""
+                WITH ranked_conversations AS (
+                    SELECT 
+                        id, account_id, email_id, conversation_id, created_at,
+                        transcript_url, audio_url, report_url,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY conversation_id 
+                            ORDER BY created_at DESC
+                        ) as rn
+                    FROM conversation_runs 
+                    WHERE account_id = %s
+                )
                 SELECT id, account_id, email_id, conversation_id, created_at,
                        transcript_url, audio_url, report_url
-                FROM conversation_runs 
-                WHERE account_id = %s
+                FROM ranked_conversations 
+                WHERE rn = 1
                 ORDER BY created_at DESC
             """, (account_id,))
             
@@ -448,13 +460,13 @@ class DatabaseService:
     
     async def get_conversations_by_date(self, target_date: datetime) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Get all conversation runs for a specific date, grouped by account
+        Get all conversation runs for a specific date, grouped by account, returning only the latest record per conversation_id
         
         Args:
             target_date: The date to filter by (datetime object)
             
         Returns:
-            Dictionary with account_id as key and list of conversations as value
+            Dictionary with account_id as key and list of conversations as value (latest per conversation_id)
         """
         try:
             conn = self._get_connection()
@@ -464,11 +476,23 @@ class DatabaseService:
             start_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
             end_date = start_date.replace(hour=23, minute=59, second=59, microsecond=999999)
             
+            # Use window function to get only the latest record per conversation_id
             cursor.execute("""
+                WITH ranked_conversations AS (
+                    SELECT 
+                        id, account_id, email_id, conversation_id, created_at,
+                        transcript_url, audio_url, report_url,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY conversation_id 
+                            ORDER BY created_at DESC
+                        ) as rn
+                    FROM conversation_runs 
+                    WHERE created_at >= %s AND created_at <= %s
+                )
                 SELECT id, account_id, email_id, conversation_id, created_at,
                        transcript_url, audio_url, report_url
-                FROM conversation_runs 
-                WHERE created_at >= %s AND created_at <= %s
+                FROM ranked_conversations 
+                WHERE rn = 1
                 ORDER BY account_id, created_at DESC
             """, (start_date, end_date))
             
@@ -501,6 +525,61 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Error getting conversations for date {target_date}: {e}")
             return {}
+    
+    async def get_conversation_by_id(self, conversation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the latest conversation record for a specific conversation_id
+        
+        Args:
+            conversation_id: The conversation ID to retrieve
+            
+        Returns:
+            Latest conversation record or None if not found
+        """
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            
+            # Use window function to get only the latest record for this conversation_id
+            cursor.execute("""
+                WITH ranked_conversations AS (
+                    SELECT 
+                        id, account_id, email_id, conversation_id, created_at,
+                        transcript_url, audio_url, report_url,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY conversation_id 
+                            ORDER BY created_at DESC
+                        ) as rn
+                    FROM conversation_runs 
+                    WHERE conversation_id = %s
+                )
+                SELECT id, account_id, email_id, conversation_id, created_at,
+                       transcript_url, audio_url, report_url
+                FROM ranked_conversations 
+                WHERE rn = 1
+            """, (conversation_id,))
+            
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if row:
+                return {
+                    "id": row[0],
+                    "account_id": row[1],
+                    "email_id": row[2],
+                    "conversation_id": row[3],
+                    "created_at": row[4],
+                    "transcript_url": row[5],
+                    "audio_url": row[6],
+                    "report_url": row[7]
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting conversation by ID {conversation_id}: {e}")
+            return None
     
     async def health_check(self) -> Dict[str, Any]:
         """
