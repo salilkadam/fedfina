@@ -68,6 +68,14 @@ class ConversationQuality(BaseModel):
     recommendation: str = Field(default="No recommendation provided", description="Recommendation based on conversation quality: 'Proceed with loan assessment', 'Schedule follow-up interview', or 'Insufficient information for assessment'")
 
 
+class Recommendations(BaseModel):
+    """Recommendations based on conversation analysis"""
+    loan_recommendation: str = Field(default="No recommendation provided", description="Loan-specific recommendations or indication of insufficient information")
+    growth_recommendations: str = Field(default="No recommendation provided", description="Growth and expansion recommendations or indication of insufficient information")
+    financial_management_recommendations: str = Field(default="No recommendation provided", description="Financial management recommendations or indication of insufficient information")
+    general_recommendations: str = Field(default="No recommendation provided", description="General recommendations or indication of insufficient information")
+
+
 class OpenAIStructuredResponse(BaseModel):
     """Complete structured response from OpenAI"""
     customer_info: Optional[CustomerInfo] = None
@@ -77,6 +85,7 @@ class OpenAIStructuredResponse(BaseModel):
     loan_disbursement_summary: Optional[LoanDisbursementSummary] = None
     risks: Optional[Risks] = None
     opportunities: Optional[Opportunities] = None
+    recommendations: Optional[Recommendations] = None
     conversation_quality: Optional[ConversationQuality] = None
     
     class Config:

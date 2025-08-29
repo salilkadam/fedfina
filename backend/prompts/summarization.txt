@@ -108,6 +108,12 @@ Generate a structured JSON response with the following format:
       "• If no growth potential was discussed, use: 'No specific growth potential identified'"
     ]
   },
+  "recommendations": {
+    "loan_recommendation": "When sufficient financial information is available, provide specific loan recommendations. If insufficient information, use 'Insufficient financial information available to provide specific loan recommendations'",
+    "growth_recommendations": "When business strengths and opportunities are identified, provide specific growth recommendations. If insufficient information, use 'Insufficient business information available to provide specific growth recommendations'",
+    "financial_management_recommendations": "When financial details are available, provide specific financial management recommendations. If insufficient information, use 'Insufficient financial information available to provide specific financial management recommendations'",
+    "general_recommendations": "When conversation provides sufficient context, provide relevant general recommendations. If conversation is too brief or incomplete, use 'Conversation was too brief to provide meaningful recommendations. A follow-up interview is recommended to gather sufficient information for proper assessment'"
+  },
   "conversation_quality": {
     "completeness": "Assessment of conversation completeness: 'Complete', 'Partial', or 'Incomplete'",
     "financial_information_available": "Yes/No - whether sufficient financial information was discussed for loan assessment",
@@ -144,4 +150,5 @@ CRITICAL INSTRUCTIONS:
 - If there are 3 or more speakers, this is a RISK that must be flagged
 - Look for speaker labels like "Partner:", "Spouse:", "Friend:", or any other names beyond the main applicant
 - Extract customer name, business name, and any interview timing information mentioned
+- RECOMMENDATIONS: Only provide recommendations when sufficient information is available. If conversation is too brief or lacks financial details, clearly state that insufficient information is available for meaningful recommendations
 - Add conversation_quality assessment to help determine if follow-up is needed

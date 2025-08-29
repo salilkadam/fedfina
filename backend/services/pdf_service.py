@@ -209,7 +209,7 @@ class PDFService:
             story.extend(self._create_opportunities_section(summary, transcript, parsed_summary))
             
             # Add recommendations section
-            story.extend(self._create_recommendations_section(summary, transcript, parsed_summary))
+            story.extend(self._create_recommendations_section(parsed_summary))
             
             # Build the PDF
             doc.build(story)
@@ -1083,7 +1083,7 @@ class PDFService:
         elements.append(Spacer(1, 20))
         return elements
 
-    def _create_recommendations_section(self, summary: str, transcript: str, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> List:
+    def _create_recommendations_section(self, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> List:
         """Create the recommendations section"""
         elements = []
         
@@ -1094,17 +1094,69 @@ class PDFService:
         )
         elements.append(title)
         
-        # Generate recommendations based on analysis
-        recommendations = self._generate_recommendations(summary, transcript, parsed_summary)
+        # Extract recommendations from parsed summary
+        recommendations_content = self._extract_recommendations_from_parsed_summary(parsed_summary)
         
         recommendations_para = Paragraph(
-            recommendations,
+            recommendations_content,
             self.styles['CustomBody']
         )
         elements.append(recommendations_para)
         
         elements.append(Spacer(1, 20))
         return elements
+
+    def _extract_recommendations_from_parsed_summary(self, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> str:
+        """Extract recommendations from parsed summary"""
+        try:
+            if parsed_summary:
+                if isinstance(parsed_summary, dict):
+                    recommendations = parsed_summary.get('recommendations', {})
+                elif hasattr(parsed_summary, 'recommendations') and parsed_summary.recommendations:
+                    # Handle Pydantic model
+                    rec_obj = parsed_summary.recommendations
+                    recommendations = {
+                        'loan_recommendation': getattr(rec_obj, 'loan_recommendation', 'No recommendation provided'),
+                        'growth_recommendations': getattr(rec_obj, 'growth_recommendations', 'No recommendation provided'),
+                        'financial_management_recommendations': getattr(rec_obj, 'financial_management_recommendations', 'No recommendation provided'),
+                        'general_recommendations': getattr(rec_obj, 'general_recommendations', 'No recommendation provided')
+                    }
+                else:
+                    recommendations = {}
+                
+                # Build recommendations content
+                content_parts = []
+                
+                # Loan recommendations
+                loan_rec = recommendations.get('loan_recommendation', 'No recommendation provided')
+                if loan_rec and loan_rec != "No recommendation provided":
+                    content_parts.append(f"<b>Loan Recommendation:</b> {loan_rec}")
+                
+                # Growth recommendations
+                growth_rec = recommendations.get('growth_recommendations', 'No recommendation provided')
+                if growth_rec and growth_rec != "No recommendation provided":
+                    content_parts.append(f"<b>Growth Recommendations:</b> {growth_rec}")
+                
+                # Financial management recommendations
+                financial_rec = recommendations.get('financial_management_recommendations', 'No recommendation provided')
+                if financial_rec and financial_rec != "No recommendation provided":
+                    content_parts.append(f"<b>Financial Management Recommendations:</b> {financial_rec}")
+                
+                # General recommendations
+                general_rec = recommendations.get('general_recommendations', 'No recommendation provided')
+                if general_rec and general_rec != "No recommendation provided":
+                    content_parts.append(f"<b>General Recommendations:</b> {general_rec}")
+                
+                if content_parts:
+                    return "<br/><br/>".join(content_parts)
+                else:
+                    return "No specific recommendations available based on the conversation analysis."
+            else:
+                return "No recommendations data available."
+                
+        except Exception as e:
+            logger.error(f"Error extracting recommendations from parsed summary: {e}")
+            return "Error occurred while extracting recommendations."
 
     def _generate_recommendations(self, summary: str, transcript: str, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> str:
         """Generate recommendations based on the analysis"""
