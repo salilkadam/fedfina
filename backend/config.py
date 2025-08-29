@@ -88,6 +88,22 @@ class Settings(BaseSettings):
     file_retention_days: int = Field(default=30, env="FILE_RETENTION_DAYS")
     audit_log_retention_days: int = Field(default=90, env="AUDIT_LOG_RETENTION_DAYS")
     
+    # Timezone Configuration
+    default_timezone: str = Field(default="Asia/Kolkata", env="DEFAULT_TIMEZONE")
+    timezone_offset_hours: int = Field(default=5, env="TIMEZONE_OFFSET_HOURS")
+    timezone_offset_minutes: int = Field(default=30, env="TIMEZONE_OFFSET_MINUTES")
+    
+    # Business Hours (IST)
+    business_start_hour: int = Field(default=9, env="BUSINESS_START_HOUR")
+    business_end_hour: int = Field(default=18, env="BUSINESS_END_HOUR")
+    
+    # Timezone Feature Flags
+    enable_ist_timezone: bool = Field(default=True, env="ENABLE_IST_TIMEZONE")
+    show_timezone_info: bool = Field(default=True, env="SHOW_TIMEZONE_INFO")
+    
+    # Testing Configuration (Temporarily disable email for testing)
+    disable_email_sending: bool = Field(default=True, env="DISABLE_EMAIL_SENDING")
+    
     # Logging
     log_format: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -138,10 +154,39 @@ class Settings(BaseSettings):
             raise ValueError('download_token_max_uses must be between 1 and 100')
         return v
     
+    @validator('timezone_offset_hours')
+    def validate_timezone_offset_hours(cls, v):
+        """Validate timezone offset hours"""
+        if not -12 <= v <= 14:
+            raise ValueError('timezone_offset_hours must be between -12 and 14')
+        return v
+    
+    @validator('timezone_offset_minutes')
+    def validate_timezone_offset_minutes(cls, v):
+        """Validate timezone offset minutes"""
+        if not 0 <= v <= 59:
+            raise ValueError('timezone_offset_minutes must be between 0 and 59')
+        return v
+    
+    @validator('business_start_hour')
+    def validate_business_start_hour(cls, v):
+        """Validate business start hour"""
+        if not 0 <= v <= 23:
+            raise ValueError('business_start_hour must be between 0 and 23')
+        return v
+    
+    @validator('business_end_hour')
+    def validate_business_end_hour(cls, v):
+        """Validate business end hour"""
+        if not 0 <= v <= 23:
+            raise ValueError('business_end_hour must be between 0 and 23')
+        return v
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"  # Allow extra environment variables
 
 
 # Create global settings instance

@@ -1032,25 +1032,30 @@ async def get_conversations_by_date(date: str = None):
     """
     try:
         from services.database_service import DatabaseService
+        from services.timezone_service import TimezoneService
         from config import Settings
         from datetime import datetime, date as date_type
         
         settings = Settings()
         db_service = DatabaseService(settings)
+        timezone_service = TimezoneService(settings) if settings.enable_ist_timezone else None
         
-        # Parse date parameter or default to today
+        # Parse date parameter or default to today (IST if enabled)
         if date:
             try:
                 target_date = datetime.strptime(date, "%Y-%m-%d")
             except ValueError:
                 raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
         else:
-            target_date = datetime.now()
+            if timezone_service:
+                target_date = timezone_service.get_ist_now().date()
+            else:
+                target_date = datetime.now().date()
         
-        # Get conversation runs for the date, grouped by account
+        # Get conversation runs for the IST date
         conversations_by_account = await db_service.get_conversations_by_date(target_date)
         
-        # Format the response with secure URLs
+        # Format response with IST timestamps and timezone information
         formatted_response = {}
         total_conversations = 0
         
@@ -1064,14 +1069,26 @@ async def get_conversations_by_date(date: str = None):
                 
                 # Create secure download URLs
                 base_url = "https://fedfina.bionicaisolutions.com"
+                
+                # Format timestamps with IST information
+                timestamp_data = {}
+                if conv['created_at']:
+                    timestamp_data["timestamp"] = conv['created_at'].isoformat()
+                    if timezone_service and settings.show_timezone_info:
+                        timestamp_data["timestamp_ist"] = timezone_service.format_ist_timestamp(conv['created_at'])
+                        # Also include UTC timestamp for reference
+                        if hasattr(conv['created_at'], 'tzinfo') and conv['created_at'].tzinfo:
+                            utc_time = timezone_service.ist_to_utc(conv['created_at'])
+                            timestamp_data["timestamp_utc"] = utc_time.isoformat()
+                
                 account_conversations.append({
                     "account_id": conv['account_id'],
                     "email_id": conv['email_id'],
-                    "timestamp": conv['created_at'].isoformat() if conv['created_at'] else None,
                     "conversation_id": conv['conversation_id'],
                     "transcript_url": f"{base_url}/api/v1/download/secure/{transcript_token}",
                     "audio_url": f"{base_url}/api/v1/download/secure/{audio_token}",
-                    "report_url": f"{base_url}/api/v1/download/secure/{report_token}"
+                    "report_url": f"{base_url}/api/v1/download/secure/{report_token}",
+                    **timestamp_data
                 })
             
             formatted_response[account_id] = {
@@ -1080,13 +1097,20 @@ async def get_conversations_by_date(date: str = None):
             }
             total_conversations += len(account_conversations)
         
-        return {
+        # Build response with timezone information
+        response_data = {
             "status": "success",
             "date": target_date.strftime("%Y-%m-%d"),
             "total_conversations": total_conversations,
             "total_accounts": len(formatted_response),
             "accounts": formatted_response
         }
+        
+        # Add timezone information if enabled
+        if timezone_service and settings.show_timezone_info:
+            response_data["timezone"] = timezone_service.get_timezone_info()["timezone"]
+        
+        return response_data
         
     except HTTPException:
         raise

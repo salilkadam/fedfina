@@ -24,6 +24,15 @@ class DatabaseService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.connection_string = settings.database_url
+        
+        # Initialize timezone service if IST timezone is enabled
+        if settings.enable_ist_timezone:
+            from services.timezone_service import TimezoneService
+            self.timezone_service = TimezoneService(settings)
+            logger.info("DatabaseService initialized with IST timezone support")
+        else:
+            self.timezone_service = None
+            logger.info("DatabaseService initialized without timezone support")
     
     def _get_connection(self):
         """Get database connection"""
@@ -463,7 +472,7 @@ class DatabaseService:
         Get all conversation runs for a specific date, grouped by account, returning only the latest record per conversation_id
         
         Args:
-            target_date: The date to filter by (datetime object)
+            target_date: The date to filter by (datetime object) - can be IST or UTC
             
         Returns:
             Dictionary with account_id as key and list of conversations as value (latest per conversation_id)
@@ -472,9 +481,21 @@ class DatabaseService:
             conn = self._get_connection()
             cursor = conn.cursor()
             
-            # Convert date to start and end of day
-            start_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = start_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            # Use timezone-aware date range if IST timezone is enabled
+            if self.timezone_service and self.settings.enable_ist_timezone:
+                # Convert IST date to UTC range for database query
+                if target_date.tzinfo is None:
+                    target_date = self.timezone_service.ist_timezone.localize(target_date)
+                
+                start_date, end_date = self.timezone_service.get_ist_date_range(
+                    target_date.strftime("%Y-%m-%d")
+                )
+                logger.debug(f"Using IST date range: {start_date} to {end_date}")
+            else:
+                # Fallback to UTC date range (original behavior)
+                start_date = target_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_date = start_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+                logger.debug(f"Using UTC date range: {start_date} to {end_date}")
             
             # Use window function to get only the latest record per conversation_id
             cursor.execute("""
@@ -500,16 +521,24 @@ class DatabaseService:
             cursor.close()
             conn.close()
             
-            # Group conversations by account_id
+            # Group conversations by account_id and convert timestamps to IST if enabled
             conversations_by_account = {}
             for row in rows:
                 account_id = row[1]
+                
+                # Convert UTC timestamp to IST if timezone service is available
+                created_at = row[4]
+                if self.timezone_service and self.settings.enable_ist_timezone:
+                    ist_created_at = self.timezone_service.utc_to_ist(created_at)
+                else:
+                    ist_created_at = created_at
+                
                 conversation = {
                     "id": row[0],
                     "account_id": row[1],
                     "email_id": row[2],
                     "conversation_id": row[3],
-                    "created_at": row[4],
+                    "created_at": ist_created_at,
                     "transcript_url": row[5],
                     "audio_url": row[6],
                     "report_url": row[7]

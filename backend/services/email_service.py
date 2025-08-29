@@ -49,13 +49,24 @@ class EmailService:
             Dict containing the email sending result
         """
         try:
+            # Check if email sending is disabled for testing
+            if self.settings.disable_email_sending:
+                logger.info(f"Email sending disabled for testing. Would send to: {to_email}")
+                return {
+                    "status": "success",
+                    "message": "Email sending disabled for testing",
+                    "to_email": to_email,
+                    "conversation_id": conversation_id,
+                    "account_id": account_id
+                }
+            
             # Create email message
             msg = MIMEMultipart()
             msg['From'] = self.from_email
             msg['To'] = to_email
             msg['Subject'] = f"Conversation Analysis Report - {account_id or 'Customer'}"
             
-            # Add BCC if configured
+            # Add CC if configured
             if self.cc_email:
                 msg['Cc'] = self.cc_email
                 logger.info(f"Adding CC to: {self.cc_email}")
