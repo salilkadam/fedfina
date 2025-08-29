@@ -20,10 +20,10 @@ spec:
         app: fedfina-backend
     spec:
       imagePullSecrets:
-        - name: docker-registry-secret
+        - name: regcred
       containers:
         - name: backend
-          image: docker.io/docker4zerocool/fedfina-backend:latest
+          image: docker.io/docker4zerocool/fedfina-backend:main-110f67f
           ports:
             - containerPort: 8000
           env:
@@ -129,6 +129,12 @@ spec:
                 secretKeyRef:
                   name: fedfina-secrets
                   key: disable-email-sending
+            # Redis Configuration
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: redis-url
           resources:
             requests:
               cpu: 100m
@@ -166,10 +172,10 @@ spec:
         app: fedfina-frontend
     spec:
       imagePullSecrets:
-        - name: docker-registry-secret
+        - name: regcred
       containers:
         - name: frontend
-          image: docker.io/docker4zerocool/fedfina-frontend:latest
+          image: docker.io/docker4zerocool/fedfina-frontend:main-fea6f13
           ports:
             - containerPort: 3000
           env:
