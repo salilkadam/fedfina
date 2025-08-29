@@ -53,6 +53,20 @@ def get_redis_client():
             logger.error(f"Failed to connect to Redis: {e}")
             # Fallback to in-memory storage
             redis_client = None
+    else:
+        # Test if existing connection is still valid
+        try:
+            redis_client.ping()
+        except Exception as e:
+            logger.warning(f"Redis connection lost, reconnecting: {e}")
+            try:
+                redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+                redis_client = redis.from_url(redis_url, decode_responses=True)
+                redis_client.ping()
+                logger.info("Redis connection re-established")
+            except Exception as reconnect_error:
+                logger.error(f"Failed to reconnect to Redis: {reconnect_error}")
+                redis_client = None
     return redis_client
 
 def generate_download_token(conversation_id: str, account_id: str, file_type: str) -> str:

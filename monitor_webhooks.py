@@ -13,7 +13,7 @@ import os
 # Configuration
 DATABASE_URL = "postgresql://fedfina:fedfinaTh1515T0p53cr3t@pg-rw.postgres.svc.cluster.local:5432/fedfina"
 NAMESPACE = "fedfina"
-BACKEND_PODS = ["fedfina-backend-546679df54-2zsbc", "fedfina-backend-546679df54-vzlhq", "fedfina-backend-5c865f48df-c8lvk"]
+BACKEND_PODS = ["fedfina-backend-5cd45574db-mqb8d"]
 
 class WebhookMonitor:
     def __init__(self):
