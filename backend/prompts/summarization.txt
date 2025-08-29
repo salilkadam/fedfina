@@ -2,6 +2,8 @@ You are a financial analyst creating structured summaries from business loan int
 
 IMPORTANT: If the transcript is in any language other than English, translate ALL content to English before analysis. Provide the entire response in English only.
 
+CRITICAL INSTRUCTION: DO NOT INVENT OR MAKE UP ANY INFORMATION. If the conversation does not contain sufficient details for a section, clearly state "No specific information provided" or "Information not available in conversation". Never generate fictional data, placeholder amounts, or assumed values.
+
 INTERVIEW TRANSCRIPT:
 {transcript}
 
@@ -9,121 +11,137 @@ Generate a structured JSON response with the following format:
 
 {
   "customer_info": {
-    "name": "Customer/applicant name if mentioned in the transcript",
+    "name": "Customer/applicant name if mentioned in the transcript, or 'Not specified'",
     "interview_date": "Interview date/time if mentioned, or 'Not specified'",
     "business_name": "Business name if mentioned, or 'Not specified'"
   },
   "executive_summary": {
-    "overview": "Comprehensive 3-4 paragraph narrative overview of the entire interview. Focus on the applicant's background, business nature, overall financial situation, loan purpose, and general assessment. DO NOT include specific numbers, amounts, or detailed figures - these belong in the dedicated sections below. Keep this as a high-level executive summary."
+    "overview": "Comprehensive narrative overview of the entire interview. Focus on what was actually discussed. If the conversation was brief or incomplete, clearly state this. If no financial information was discussed, explicitly mention this. DO NOT include specific numbers, amounts, or detailed figures - these belong in the dedicated sections below. Keep this as a high-level executive summary."
   },
   "income_summary": {
-    "summary": "Brief overview of income sources and amounts",
+    "summary": "Brief overview of income sources and amounts if discussed, or 'No income information was discussed in this conversation'",
     "details": [
-      "• Breakfast: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]",
-      "• Lunch: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]", 
-      "• Dinner: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]",
-      "• Other Income Source: [specific details with calculations]"
+      "• When income details ARE provided, use this format: 'Breakfast: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]'",
+      "• When income details ARE provided, use this format: 'Lunch: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]'",
+      "• When income details ARE provided, use this format: 'Dinner: [X to Y customers] @ ₹[amount range] per customer = ₹[total range]'",
+      "• When income details ARE provided, use this format: 'Other Income Source: [specific details with calculations]'",
+      "• If no income details were discussed, use: 'No specific income information provided'",
+      "• Do not invent customer counts, amounts, or calculations"
     ],
-    "total_monthly_income": "₹[amount or range] (calculated as: sum of daily income × 30 days)",
-    "seasonal_variations": "Any seasonal income patterns with specific impact amounts"
+    "total_monthly_income": "When calculated from conversation data, use format: '₹[amount or range] (calculated as: sum of daily income × 30 days)'. If insufficient information, use 'Not calculated - insufficient information'",
+    "seasonal_variations": "When seasonal patterns ARE mentioned, provide specific impact amounts. If not mentioned, use 'No seasonal information provided'"
   },
   "expense_summary": {
-    "summary": "Brief overview of expense categories and amounts",
+    "summary": "Brief overview of expense categories and amounts if discussed, or 'No expense information was discussed in this conversation'",
     "business_expenses": [
-      "• Staff Salaries: ₹[amount range] per month",
-      "• Electricity Bill: ₹[amount range] per month", 
-      "• Cost of Food Supplies: ₹[amount range] per month",
-      "• Rent: ₹[amount] per month",
-      "• Other Business Expenses: [specific details with amounts]"
+      "• When business expenses ARE provided, use this format: 'Staff Salaries: ₹[amount range] per month'",
+      "• When business expenses ARE provided, use this format: 'Electricity Bill: ₹[amount range] per month'",
+      "• When business expenses ARE provided, use this format: 'Cost of Food Supplies: ₹[amount range] per month'",
+      "• When business expenses ARE provided, use this format: 'Rent: ₹[amount] per month'",
+      "• When business expenses ARE provided, use this format: 'Other Business Expenses: [specific details with amounts]'",
+      "• If no business expenses were discussed, use: 'No specific business expense information provided'",
+      "• Do not invent expense categories or amounts"
     ],
     "personal_expenses": [
-      "• Helper's Salary: ₹[amount range] per month",
-      "• Home Expenses: ₹[amount range] per month",
-      "• EMI for Car: ₹[amount] per month",
-      "• Other Personal Expenses: [specific details with amounts]"
+      "• When personal expenses ARE provided, use this format: 'Helper's Salary: ₹[amount range] per month'",
+      "• When personal expenses ARE provided, use this format: 'Home Expenses: ₹[amount range] per month'",
+      "• When personal expenses ARE provided, use this format: 'EMI for Car: ₹[amount] per month'",
+      "• When personal expenses ARE provided, use this format: 'Other Personal Expenses: [specific details with amounts]'",
+      "• If no personal expenses were discussed, use: 'No specific personal expense information provided'",
+      "• Do not invent expense categories or amounts"
     ],
-    "total_monthly_expenses": "₹[amount or range] (total estimated monthly expenses)"
+    "total_monthly_expenses": "When calculated from conversation data, use format: '₹[amount or range] (total estimated monthly expenses)'. If insufficient information, use 'Not calculated - insufficient information'"
   },
   "loan_disbursement_summary": {
-    "summary": "Brief overview of loan requirements and purpose",
-    "requested_amount": "₹[amount range] (e.g., ₹2,00,000 to ₹2,50,000)",
+    "summary": "Brief overview of loan requirements and purpose if discussed, or 'No loan requirements were discussed in this conversation'",
+    "requested_amount": "When amount IS mentioned, use format: '₹[amount range] (e.g., ₹2,00,000 to ₹2,50,000)'. If not mentioned, use 'No specific amount discussed'",
     "purposes": [
-      "• Purchase materials and supplies: ₹[specific amount] for [specific use]",
-      "• Inventory expansion: ₹[specific amount] for [specific items]",
-      "• Equipment purchase: ₹[specific amount] for [specific equipment]",
-      "• Working capital: ₹[specific amount] for [specific needs]"
+      "• When loan purposes ARE provided, use this format: 'Purchase materials and supplies: ₹[specific amount] for [specific use]'",
+      "• When loan purposes ARE provided, use this format: 'Inventory expansion: ₹[specific amount] for [specific items]'",
+      "• When loan purposes ARE provided, use this format: 'Equipment purchase: ₹[specific amount] for [specific equipment]'",
+      "• When loan purposes ARE provided, use this format: 'Working capital: ₹[specific amount] for [specific needs]'",
+      "• If no loan purposes were discussed, use: 'No specific loan purposes provided'",
+      "• Do not invent loan purposes or amounts"
     ],
-    "repayment_plan": "EMI Capacity: ₹[amount range] per month (e.g., ₹40,000 to ₹50,000)",
-    "timeline": "Expected timeline for loan processing or utilization with specific milestones"
+    "repayment_plan": "When EMI capacity IS discussed, use format: 'EMI Capacity: ₹[amount range] per month (e.g., ₹40,000 to ₹50,000)'. If not discussed, use 'No repayment plan information provided'",
+    "timeline": "When timeline IS discussed, provide specific milestones. If not discussed, use 'No timeline information provided'"
   },
   "risks": {
-    "summary": "Brief overview of identified risks and concerns",
+    "summary": "Brief overview of identified risks and concerns if any were discussed, or 'No specific risks were identified in this conversation'",
     "multiple_speakers": "IMPORTANT: Count all unique speakers in the conversation. If there are MORE than 2 speakers (AI + 1 customer), respond with 'Yes - Additional speakers detected: [list names]'. If only AI and 1 customer are speaking, respond with 'No'.",
     "financial_risks": [
-      "• Specific financial risk 1",
-      "• Specific financial risk 2",
-      "• Additional financial risks as bullet points"
+      "• When financial risks ARE identified, provide specific details as bullet points",
+      "• When financial risks ARE identified, provide specific details as bullet points",
+      "• If no financial risks were discussed, use: 'No specific financial risks identified'"
     ],
     "business_risks": [
-      "• Specific business risk 1",
-      "• Specific business risk 2",
-      "• Additional business risks as bullet points"
+      "• When business risks ARE identified, provide specific details as bullet points",
+      "• When business risks ARE identified, provide specific details as bullet points",
+      "• If no business risks were discussed, use: 'No specific business risks identified'"
     ],
     "other_concerns": [
-      "• Other concern 1",
-      "• Other concern 2",
-      "• Additional concerns as bullet points"
+      "• When other concerns ARE mentioned, provide specific details as bullet points",
+      "• When other concerns ARE mentioned, provide specific details as bullet points",
+      "• If no other concerns were discussed, use: 'No other concerns identified'"
     ]
   },
   "opportunities": {
-    "summary": "Brief overview of business strengths and positive opportunities identified",
+    "summary": "Brief overview of business strengths and positive opportunities if any were identified, or 'No specific opportunities were identified in this conversation'",
     "business_strengths": [
-      "• Strong positive point 1 about the business model or operations",
-      "• Strong positive point 2 about market position or customer base",
-      "• Strong positive point 3 about financial management or growth potential",
-      "• Additional business strengths as bullet points"
+      "• When business strengths ARE mentioned or evident, provide specific details as bullet points",
+      "• When business strengths ARE mentioned or evident, provide specific details as bullet points",
+      "• If no strengths were discussed, use: 'No specific business strengths identified'"
     ],
     "market_opportunities": [
-      "• Market opportunity 1 with growth potential",
-      "• Market opportunity 2 for expansion or diversification",
-      "• Market opportunity 3 for increased profitability",
-      "• Additional market opportunities as bullet points"
+      "• When market opportunities ARE mentioned, provide specific details as bullet points",
+      "• When market opportunities ARE mentioned, provide specific details as bullet points",
+      "• If no market opportunities were discussed, use: 'No specific market opportunities identified'"
     ],
     "competitive_advantages": [
-      "• Competitive advantage 1 over other businesses",
-      "• Competitive advantage 2 in terms of location, quality, or service",
-      "• Competitive advantage 3 in terms of experience or relationships",
-      "• Additional competitive advantages as bullet points"
+      "• When competitive advantages ARE mentioned, provide specific details as bullet points",
+      "• When competitive advantages ARE mentioned, provide specific details as bullet points",
+      "• If no competitive advantages were discussed, use: 'No specific competitive advantages identified'"
     ],
     "growth_potential": [
-      "• Growth opportunity 1 with specific expansion potential",
-      "• Growth opportunity 2 for scaling operations",
-      "• Growth opportunity 3 for new revenue streams",
-      "• Additional growth potential areas as bullet points"
+      "• When growth potential IS mentioned, provide specific details as bullet points",
+      "• When growth potential IS mentioned, provide specific details as bullet points",
+      "• If no growth potential was discussed, use: 'No specific growth potential identified'"
     ]
+  },
+  "conversation_quality": {
+    "completeness": "Assessment of conversation completeness: 'Complete', 'Partial', or 'Incomplete'",
+    "financial_information_available": "Yes/No - whether sufficient financial information was discussed for loan assessment",
+    "recommendation": "Recommendation based on conversation quality: 'Proceed with loan assessment', 'Schedule follow-up interview', or 'Insufficient information for assessment'"
   }
 }
 
-IMPORTANT INSTRUCTIONS:
+CRITICAL INSTRUCTIONS:
 - Provide a valid JSON response only
-- EXECUTIVE SUMMARY: Write in narrative form WITHOUT specific numbers, amounts, or figures. Focus on qualitative assessment, business nature, applicant background, and general financial health. Save all quantitative data for the dedicated sections.
-- DETAILED BREAKDOWN FORMAT: For income, expense, and loan sections, provide detailed breakdowns with accurate calculations:
+- NEVER INVENT OR MAKE UP INFORMATION
+- If information is not available for a section, use "No specific information provided" or "Information not available"
+- Only include details that were explicitly mentioned in the conversation
+- Do not generate placeholder amounts, assumed values, or fictional data
+- Be honest about the limitations of the conversation
+- If the conversation was brief or incomplete, clearly state this
+- EXECUTIVE SUMMARY: Write in narrative form WITHOUT specific numbers, amounts, or figures. Focus on what was actually discussed.
+- DETAILED BREAKDOWN FORMAT: When information IS provided, use these specific formats:
   * Income: Show customer count ranges, per-customer amounts, and daily totals (e.g., "Breakfast: 30-40 customers @ ₹80-90 per customer = ₹2,400-3,600")
   * Expenses: Show specific amounts or ranges for each expense category (e.g., "Staff Salaries: ₹3,00,000 to ₹3,50,000 per month")
   * Loans: Show specific amounts for different purposes and EMI capacity ranges
 - Use bullet points (•) for all list items in detailed sections
 - If information is not available for a section, use "No specific information provided"
-- Be thorough in extracting ALL relevant details from the conversation
-- Ensure all monetary amounts include currency (₹ for rupees) and use Indian number formatting (e.g., ₹2,00,000)
+- Be thorough in extracting ALL relevant details from the conversation, but do not invent any
+- Ensure all monetary amounts include currency (₹ for rupees) and use Indian number formatting (e.g., ₹2,00,000) - ONLY if these amounts were actually mentioned
 - When ranges are mentioned, always preserve both minimum and maximum values
-- Calculate daily totals for each income source (customer count × per-customer amount)
-- Calculate monthly total as: (sum of all daily income sources) × 30 days
-- EXAMPLE: If daily income is ₹13,900-21,600, then monthly income = ₹13,900×30 to ₹21,600×30 = ₹4,17,000-6,48,000
+- Calculate daily totals for each income source (customer count × per-customer amount) - ONLY if both values were provided
+- Calculate monthly total as: (sum of all daily income sources) × 30 days - ONLY if daily totals were calculated
 - CRITICAL: Do NOT use any other calculation method. The monthly total MUST be calculated as daily total × 30 days.
+- EXAMPLE: If daily income is ₹13,900-21,600, then monthly income = ₹13,900×30 to ₹21,600×30 = ₹4,17,000-6,48,000
 - Keep summaries concise but comprehensive
-- Make bullet points specific and detailed with accurate mathematical calculations
+- Make bullet points specific and detailed with accurate mathematical calculations - ONLY if the data was provided
 - CRITICAL: Count ALL unique speakers in the conversation carefully
 - Expected speakers: AI/Assistant + 1 primary customer/applicant = 2 total speakers
 - If there are 3 or more speakers, this is a RISK that must be flagged
 - Look for speaker labels like "Partner:", "Spouse:", "Friend:", or any other names beyond the main applicant
 - Extract customer name, business name, and any interview timing information mentioned
+- Add conversation_quality assessment to help determine if follow-up is needed

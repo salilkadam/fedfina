@@ -61,6 +61,13 @@ class Opportunities(BaseModel):
     growth_potential: List[str] = Field(default_factory=list, description="Growth potential areas with bullet points")
 
 
+class ConversationQuality(BaseModel):
+    """Conversation quality assessment"""
+    completeness: str = Field(default="Not assessed", description="Assessment of conversation completeness: 'Complete', 'Partial', or 'Incomplete'")
+    financial_information_available: str = Field(default="Not assessed", description="Yes/No - whether sufficient financial information was discussed for loan assessment")
+    recommendation: str = Field(default="No recommendation provided", description="Recommendation based on conversation quality: 'Proceed with loan assessment', 'Schedule follow-up interview', or 'Insufficient information for assessment'")
+
+
 class OpenAIStructuredResponse(BaseModel):
     """Complete structured response from OpenAI"""
     customer_info: Optional[CustomerInfo] = None
@@ -70,6 +77,7 @@ class OpenAIStructuredResponse(BaseModel):
     loan_disbursement_summary: Optional[LoanDisbursementSummary] = None
     risks: Optional[Risks] = None
     opportunities: Optional[Opportunities] = None
+    conversation_quality: Optional[ConversationQuality] = None
     
     class Config:
         """Pydantic configuration"""

@@ -187,6 +187,9 @@ class PDFService:
             # Add summary section
             story.extend(self._create_summary_section(summary, parsed_summary))
             
+            # Add conversation quality assessment
+            story.extend(self._create_conversation_quality_section(parsed_summary))
+            
             # Add summary table
             story.extend(self._create_summary_table(parsed_summary, metadata))
             
@@ -1643,6 +1646,85 @@ class PDFService:
                 "status": "error",
                 "error": f"Simple PDF generation failed: {str(e)}"
             }
+
+    def _create_conversation_quality_section(self, parsed_summary: Union[OpenAIStructuredResponse, dict, None] = None) -> List:
+        """Create the conversation quality assessment section"""
+        elements = []
+        
+        # Section title
+        title = Paragraph(
+            "Conversation Quality Assessment",
+            self.styles['CustomHeading']
+        )
+        elements.append(title)
+        
+        try:
+            if parsed_summary:
+                if isinstance(parsed_summary, dict):
+                    quality_info = parsed_summary.get('conversation_quality', {})
+                elif hasattr(parsed_summary, 'conversation_quality'):
+                    quality_info = parsed_summary.conversation_quality
+                else:
+                    quality_info = {}
+                
+                # Build quality assessment content
+                content_parts = []
+                
+                # Completeness
+                completeness = quality_info.get('completeness', 'Not assessed')
+                content_parts.append(f"<b>Conversation Completeness:</b> {completeness}")
+                
+                # Financial information availability
+                financial_info = quality_info.get('financial_information_available', 'Not assessed')
+                content_parts.append(f"<b>Financial Information Available:</b> {financial_info}")
+                
+                # Recommendation
+                recommendation = quality_info.get('recommendation', 'No recommendation provided')
+                content_parts.append(f"<b>Recommendation:</b> {recommendation}")
+                
+                # Add warning if conversation is incomplete
+                if completeness.lower() in ['incomplete', 'partial']:
+                    content_parts.append("<br/><b>⚠️ WARNING:</b> This conversation appears to be incomplete. The financial analysis below may contain limited or no information.")
+                
+                if financial_info.lower() == 'no':
+                    content_parts.append("<br/><b>⚠️ NOTE:</b> This conversation did not contain sufficient financial information for a complete loan assessment.")
+                
+                # Create the content paragraph
+                if content_parts:
+                    content = "<br/><br/>".join(content_parts)
+                    content_para = Paragraph(content, self.styles['CustomBody'])
+                    elements.append(content_para)
+                else:
+                    # Fallback if no quality info available
+                    fallback_content = """
+                    <b>Conversation Quality Assessment:</b> Not available<br/>
+                    <b>Note:</b> This report was generated without quality assessment data.
+                    """
+                    fallback_para = Paragraph(fallback_content, self.styles['CustomBody'])
+                    elements.append(fallback_para)
+            else:
+                # No parsed summary available
+                fallback_content = """
+                <b>Conversation Quality Assessment:</b> Not available<br/>
+                <b>Note:</b> This report was generated without structured analysis data.
+                """
+                fallback_para = Paragraph(fallback_content, self.styles['CustomBody'])
+                elements.append(fallback_para)
+            
+            elements.append(Spacer(1, 20))
+            return elements
+            
+        except Exception as e:
+            logger.error(f"Error creating conversation quality section: {e}")
+            # Fallback content
+            fallback_content = """
+            <b>Conversation Quality Assessment:</b> Error occurred during assessment<br/>
+            <b>Note:</b> Please review the conversation manually for completeness.
+            """
+            fallback_para = Paragraph(fallback_content, self.styles['CustomBody'])
+            elements.append(fallback_para)
+            elements.append(Spacer(1, 20))
+            return elements
 
     async def health_check(self) -> Dict[str, Any]:
         """
