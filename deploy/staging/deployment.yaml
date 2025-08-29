@@ -1,0 +1,209 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fedfina-backend-staging
+  namespace: fedfina-s
+  labels:
+    app: fedfina-backend
+    environment: staging
+    version: timezone-test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fedfina-backend
+      environment: staging
+  template:
+    metadata:
+      labels:
+        app: fedfina-backend
+        environment: staging
+        version: timezone-test
+    spec:
+      containers:
+      - name: backend
+        image: docker.io/docker4zerocool/fedfina-backend:main-110f67f
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENV
+          value: "staging"
+        - name: API_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: api-secret-key
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: database-url
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: openai-api-key
+        - name: ELEVENLABS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: elevenlabs-api-key
+        - name: ELEVENLABS_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: elevenlabs-webhook-secret
+        - name: MINIO_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: minio-endpoint
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: minio-access-key
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: minio-secret-key
+        - name: SMTP_HOST
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: smtp-server
+        - name: SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: smtp-port
+        - name: SMTP_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: smtp-username
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: smtp-password
+        - name: SMTP_FROM_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: smtp-from-email
+        - name: SMTP_USE_TLS
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: smtp-use-tls
+        - name: SMTP_USE_CC
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: smtp-use-cc
+        # Timezone Configuration
+        - name: DEFAULT_TIMEZONE
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: default-timezone
+        - name: TIMEZONE_OFFSET_HOURS
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: timezone-offset-hours
+        - name: TIMEZONE_OFFSET_MINUTES
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: timezone-offset-minutes
+        - name: BUSINESS_START_HOUR
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: business-start-hour
+        - name: BUSINESS_END_HOUR
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: business-end-hour
+        - name: ENABLE_IST_TIMEZONE
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: enable-ist-timezone
+        - name: SHOW_TIMEZONE_INFO
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: show-timezone-info
+        - name: DISABLE_EMAIL_SENDING
+          valueFrom:
+            secretKeyRef:
+              name: fedfina-secrets
+              key: disable-email-sending
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fedfina-backend-staging
+  namespace: fedfina-s
+  labels:
+    app: fedfina-backend
+    environment: staging
+spec:
+  selector:
+    app: fedfina-backend
+    environment: staging
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fedfina-backend-staging
+  namespace: fedfina-s
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - fedfina-staging.bionicaisolutions.com
+    secretName: fedfina-staging-tls
+  rules:
+  - host: fedfina-staging.bionicaisolutions.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fedfina-backend-staging
+            port:
+              number: 80

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fedfina-s
+  labels:
+    name: fedfina-staging
+    environment: staging
+    purpose: timezone-testing
