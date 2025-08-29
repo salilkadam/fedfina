@@ -1662,8 +1662,14 @@ class PDFService:
             if parsed_summary:
                 if isinstance(parsed_summary, dict):
                     quality_info = parsed_summary.get('conversation_quality', {})
-                elif hasattr(parsed_summary, 'conversation_quality'):
-                    quality_info = parsed_summary.conversation_quality
+                elif hasattr(parsed_summary, 'conversation_quality') and parsed_summary.conversation_quality:
+                    # Handle Pydantic model
+                    quality_obj = parsed_summary.conversation_quality
+                    quality_info = {
+                        'completeness': getattr(quality_obj, 'completeness', 'Not assessed'),
+                        'financial_information_available': getattr(quality_obj, 'financial_information_available', 'Not assessed'),
+                        'recommendation': getattr(quality_obj, 'recommendation', 'No recommendation provided')
+                    }
                 else:
                     quality_info = {}
                 
