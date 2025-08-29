@@ -23,7 +23,7 @@ spec:
         - name: docker-registry-secret
       containers:
         - name: backend
-          image: docker.io/docker4zerocool/fedfina-backend:latest
+          image: 
           ports:
             - containerPort: 8000
           env:
@@ -169,7 +169,7 @@ spec:
         - name: docker-registry-secret
       containers:
         - name: frontend
-          image: docker.io/docker4zerocool/fedfina-frontend:latest
+          image: 
           ports:
             - containerPort: 3000
           env:
