@@ -24,7 +24,7 @@ spec:
         - name: regcred
       containers:
         - name: backend
-          image: 
+          image: docker.io/docker4zerocool/fedfina-backend:main-110f67f 
           ports:
             - containerPort: 8000
           env:
@@ -105,6 +105,53 @@ spec:
                 secretKeyRef:
                   name: fedfina-secrets
                   key: smtp-use-cc
+            # Timezone Configuration for IST
+            - name: DEFAULT_TIMEZONE
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: default-timezone
+            - name: TIMEZONE_OFFSET_HOURS
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: timezone-offset-hours
+            - name: TIMEZONE_OFFSET_MINUTES
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: timezone-offset-minutes
+            - name: BUSINESS_START_HOUR
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: business-start-hour
+            - name: BUSINESS_END_HOUR
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: business-end-hour
+            - name: ENABLE_IST_TIMEZONE
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: enable-ist-timezone
+            - name: SHOW_TIMEZONE_INFO
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: show-timezone-info
+            - name: DISABLE_EMAIL_SENDING
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: disable-email-sending
+            # Redis Configuration
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: redis-url
             - name: CALLBACK_ENABLED
               valueFrom:
                 secretKeyRef:
@@ -165,7 +212,7 @@ spec:
         - name: regcred
       containers:
         - name: frontend
-          image: 
+          image: docker.io/docker4zerocool/fedfina-frontend:main-fea6f13 
           ports:
             - containerPort: 3000
           env:
