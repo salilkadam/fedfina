@@ -231,7 +231,7 @@ jobs:
       uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: "GitOps(staging): update image tags to ${{ github.sha }}"
-        branch: develop
+        branch: ${{ github.ref_name }}
         file_pattern: 'deploy/deployment-staging.yaml'
         # Prevent triggering another workflow run
         skip_ci: true
