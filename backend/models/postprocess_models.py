@@ -15,6 +15,7 @@ class PostprocessRequest(BaseModel):
     
     email_id: EmailStr = Field(..., description="Email address to send the report to")
     account_id: str = Field(..., min_length=3, max_length=50, description="Account identifier")
+    emp_id: str = Field(None, min_length=1, max_length=50, description="Employee identifier within the account")
     conversation_id: str = Field(..., description="ElevenLabs conversation ID")
     
     @validator('conversation_id')
@@ -25,6 +26,16 @@ class PostprocessRequest(BaseModel):
         if len(v) < 20 or len(v) > 50:
             raise ValueError('conversation_id must be between 20 and 50 characters')
         return v
+    
+    @validator('emp_id')
+    def validate_emp_id(cls, v):
+        """Validate employee ID format"""
+        if v is not None:
+            if not v.strip():
+                raise ValueError('emp_id cannot be empty if provided')
+            if len(v.strip()) < 1 or len(v.strip()) > 50:
+                raise ValueError('emp_id must be between 1 and 50 characters')
+        return v.strip() if v else None
 
 
 class ProcessingStatus(BaseModel):

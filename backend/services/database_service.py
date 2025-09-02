@@ -44,19 +44,21 @@ class DatabaseService:
         account_id: str,
         email_id: str,
         conversation_id: str,
+        emp_id: str = None,
         files: Dict[str, str]
     ) -> Dict[str, Any]:
         """
         Persist a single run record capturing required artifacts.
 
         This creates a lightweight table if it does not exist yet:
-        conversation_runs(id, account_id, email_id, conversation_id, created_at,
+        conversation_runs(id, account_id, email_id, emp_id, conversation_id, created_at,
                           transcript_url, audio_url, report_url)
 
         Args:
             account_id: Account identifier
             email_id: Email address
             conversation_id: ElevenLabs conversation id
+            emp_id: Employee identifier within the account (optional)
             files: Dict with keys like "transcript", "audio", "pdf" mapping to URLs
 
         Returns:
@@ -73,6 +75,7 @@ class DatabaseService:
                     id TEXT PRIMARY KEY,
                     account_id TEXT NOT NULL,
                     email_id TEXT NOT NULL,
+                    emp_id TEXT,
                     conversation_id TEXT NOT NULL,
                     created_at TIMESTAMP NOT NULL,
                     transcript_url TEXT,
@@ -81,6 +84,8 @@ class DatabaseService:
                 );
                 CREATE INDEX IF NOT EXISTS idx_conversation_runs_conversation_id
                     ON conversation_runs(conversation_id);
+                CREATE INDEX IF NOT EXISTS idx_conversation_runs_emp_id
+                    ON conversation_runs(emp_id);
                 """
             )
 
@@ -92,14 +97,15 @@ class DatabaseService:
             cursor.execute(
                 """
                 INSERT INTO conversation_runs (
-                    id, account_id, email_id, conversation_id, created_at,
+                    id, account_id, email_id, emp_id, conversation_id, created_at,
                     transcript_url, audio_url, report_url
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     run_id,
                     account_id,
                     email_id,
+                    emp_id,
                     conversation_id,
                     datetime.utcnow(),
                     transcript_url,
@@ -127,7 +133,7 @@ class DatabaseService:
                 pass
             return {"status": "error", "error": str(e)}
     
-    async def create_processing_job(self, email_id: str, account_id: str, conversation_id: str) -> Dict[str, Any]:
+    async def create_processing_job(self, email_id: str, account_id: str, conversation_id: str, emp_id: str = None) -> Dict[str, Any]:
         """
         Create a new processing job record
         
@@ -135,6 +141,7 @@ class DatabaseService:
             email_id: Email address for notification
             account_id: Account identifier
             conversation_id: Conversation identifier
+            emp_id: Employee identifier within the account (optional)
             
         Returns:
             Dict containing job creation result
@@ -146,12 +153,13 @@ class DatabaseService:
             # Insert new processing job
             cursor.execute("""
                 INSERT INTO conversation_processing 
-                (email_id, account_id, conversation_id, status, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                (email_id, account_id, emp_id, conversation_id, status, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
                 email_id,
                 account_id,
+                emp_id,
                 conversation_id,
                 'pending',
                 datetime.utcnow(),
@@ -501,7 +509,7 @@ class DatabaseService:
             cursor.execute("""
                 WITH ranked_conversations AS (
                     SELECT 
-                        id, account_id, email_id, conversation_id, created_at,
+                        id, account_id, email_id, emp_id, conversation_id, created_at,
                         transcript_url, audio_url, report_url,
                         ROW_NUMBER() OVER (
                             PARTITION BY conversation_id 
@@ -510,7 +518,7 @@ class DatabaseService:
                     FROM conversation_runs 
                     WHERE created_at >= %s AND created_at <= %s
                 )
-                SELECT id, account_id, email_id, conversation_id, created_at,
+                SELECT id, account_id, email_id, emp_id, conversation_id, created_at,
                        transcript_url, audio_url, report_url
                 FROM ranked_conversations 
                 WHERE rn = 1
@@ -537,11 +545,12 @@ class DatabaseService:
                     "id": row[0],
                     "account_id": row[1],
                     "email_id": row[2],
-                    "conversation_id": row[3],
+                    "emp_id": row[3],
+                    "conversation_id": row[4],
                     "created_at": ist_created_at,
-                    "transcript_url": row[5],
-                    "audio_url": row[6],
-                    "report_url": row[7]
+                    "transcript_url": row[6],
+                    "audio_url": row[7],
+                    "report_url": row[8]
                 }
                 
                 if account_id not in conversations_by_account:
@@ -573,7 +582,7 @@ class DatabaseService:
             cursor.execute("""
                 WITH ranked_conversations AS (
                     SELECT 
-                        id, account_id, email_id, conversation_id, created_at,
+                        id, account_id, email_id, emp_id, conversation_id, created_at,
                         transcript_url, audio_url, report_url,
                         ROW_NUMBER() OVER (
                             PARTITION BY conversation_id 
@@ -582,7 +591,7 @@ class DatabaseService:
                     FROM conversation_runs 
                     WHERE conversation_id = %s
                 )
-                SELECT id, account_id, email_id, conversation_id, created_at,
+                SELECT id, account_id, email_id, emp_id, conversation_id, created_at,
                        transcript_url, audio_url, report_url
                 FROM ranked_conversations 
                 WHERE rn = 1
@@ -597,11 +606,12 @@ class DatabaseService:
                     "id": row[0],
                     "account_id": row[1],
                     "email_id": row[2],
-                    "conversation_id": row[3],
-                    "created_at": row[4],
-                    "transcript_url": row[5],
-                    "audio_url": row[6],
-                    "report_url": row[7]
+                    "emp_id": row[3],
+                    "conversation_id": row[4],
+                    "created_at": row[5],
+                    "transcript_url": row[6],
+                    "audio_url": row[7],
+                    "report_url": row[8]
                 }
             
             return None

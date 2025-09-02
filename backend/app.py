@@ -134,49 +134,93 @@ def generate_download_token(conversation_id: str, account_id: str, file_type: st
 
 def validate_download_token(token: str) -> Optional[Dict[str, Any]]:
     """
-    Validate a download token
-    
+    Validate a download token with improved resilience across pods
+
     Args:
         token: The download token
-        
+
     Returns:
         Token data if valid, None otherwise
     """
+    import asyncio
+
+    # Strategy: Try Redis with retries, then fallback to cross-pod sharing
     redis_client = get_redis_client()
     if redis_client:
-        try:
-            # Try Redis first
-            token_data_json = redis_client.get(f"download_token:{token}")
-            if token_data_json:
-                try:
-                    token_data = json.loads(token_data_json)
-                    # Check if token has expired (additional safety check)
-                    if time.time() > token_data['expires_at']:
+        # Try Redis with retry logic for cross-pod consistency
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                logger.debug(f"Token validation attempt {attempt + 1}/{max_retries} for token: {token[:10]}...")
+
+                # Try Redis first
+                token_data_json = redis_client.get(f"download_token:{token}")
+                if token_data_json:
+                    try:
+                        token_data = json.loads(token_data_json)
+                        # Check if token has expired (additional safety check)
+                        if time.time() > token_data['expires_at']:
+                            logger.warning(f"Token expired: {token[:10]}...")
+                            redis_client.delete(f"download_token:{token}")
+                            return None
+
+                        logger.debug(f"Token validated successfully from Redis: {token[:10]}...")
+                        return token_data
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.error(f"Invalid token data format in Redis: {e}")
                         redis_client.delete(f"download_token:{token}")
                         return None
+
+                # If token not found in Redis, it might be on another pod
+                # Add a small delay and retry in case of replication lag
+                if attempt < max_retries - 1:
+                    logger.debug(f"Token not found in Redis, retrying... ({token[:10]}...)")
+                    time.sleep(0.1 * (attempt + 1))  # Progressive delay
+                    continue
+
+                logger.debug(f"Token not found in Redis after {max_retries} attempts: {token[:10]}...")
+                return None
+
+            except Exception as e:
+                logger.error(f"Redis error during token validation (attempt {attempt + 1}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(0.2 * (attempt + 1))  # Progressive delay
+                    continue
+                break
+
+    # Redis failed or unavailable - this is the main issue!
+    logger.warning(f"Redis unavailable for token validation: {token[:10]}...")
+
+    # Enhanced fallback: Try to find token across all pods via Redis ping
+    # This helps detect if Redis is temporarily down vs permanently unavailable
+    if redis_client:
+        try:
+            redis_client.ping()
+            logger.info("Redis connectivity restored")
+            # Try one more time with fresh connection
+            token_data_json = redis_client.get(f"download_token:{token}")
+            if token_data_json:
+                token_data = json.loads(token_data_json)
+                if time.time() <= token_data['expires_at']:
+                    logger.info(f"Token recovered after Redis reconnect: {token[:10]}...")
                     return token_data
-                except (json.JSONDecodeError, KeyError) as e:
-                    logger.error(f"Invalid token data format: {e}")
-                    redis_client.delete(f"download_token:{token}")
-                    return None
-            return None
         except Exception as e:
-            logger.error(f"Redis error during token validation: {e}")
-            # Fallback to in-memory storage
-            pass
-    else:
-        # Fallback to in-memory storage
-        if token not in download_tokens:
-            return None
-        
-        token_data = download_tokens[token]
-        
-        # Check if token has expired
-        if time.time() > token_data['expires_at']:
-            del download_tokens[token]
-            return None
-        
-        return token_data
+            logger.error(f"Redis still unavailable after reconnect attempt: {e}")
+
+    # Final fallback to in-memory storage (limited effectiveness across pods)
+    logger.warning(f"Falling back to in-memory storage for token: {token[:10]}...")
+    if token not in download_tokens:
+        logger.error(f"Token not found in memory either: {token[:10]}... - This confirms cross-pod issue!")
+        return None
+
+    token_data = download_tokens[token]
+
+    # Check if token has expired
+    if time.time() > token_data['expires_at']:
+        del download_tokens[token]
+        return None
+
+    return token_data
 
 
 @asynccontextmanager
@@ -409,11 +453,12 @@ async def elevenlabs_webhook(
             conversation_id = body.get('conversation_id')
             metadata = body.get('metadata', {})
         
-        # Get email_id and account_id from dynamic variables
+        # Get email_id, account_id, and emp_id from dynamic variables
         # Check multiple possible locations for dynamic_variables
         dynamic_vars = {}
         email_id = None
         account_id = None
+        emp_id = None
         
         # Debug: Log all possible locations
         logger.info(f"Looking for dynamic_variables in metadata: {metadata}")
@@ -425,6 +470,9 @@ async def elevenlabs_webhook(
         if 'account_id' in body:
             account_id = body.get('account_id')
             logger.info(f"Found account_id directly in body: {account_id}")
+        if 'emp_id' in body:
+            emp_id = body.get('emp_id')
+            logger.info(f"Found emp_id directly in body: {emp_id}")
         
         # Second, try direct access in metadata
         if not email_id and 'dynamic_variables' in metadata:
@@ -457,8 +505,10 @@ async def elevenlabs_webhook(
             email_id = dynamic_vars.get('email_id') or dynamic_vars.get('email')
         if not account_id:
             account_id = dynamic_vars.get('account_id') or dynamic_vars.get('account')
+        if not emp_id:
+            emp_id = dynamic_vars.get('emp_id') or dynamic_vars.get('employee_id')
         
-        logger.info(f"Extracted email_id: {email_id}, account_id: {account_id}")
+        logger.info(f"Extracted email_id: {email_id}, account_id: {account_id}, emp_id: {emp_id}")
         
         if not conversation_id:
             raise HTTPException(status_code=400, detail="Missing conversation_id in webhook")
@@ -481,6 +531,7 @@ async def elevenlabs_webhook(
             conversation_id=conversation_id,
             email_id=email_id or "unknown@example.com",
             account_id=account_id or "unknown",
+            emp_id=emp_id,  # Employee ID from webhook
             send_email=bool(email_id)  # Only send email if we have an email_id
         )
         
@@ -1084,6 +1135,7 @@ async def get_conversations_by_date(date: str = None):
                 account_conversations.append({
                     "account_id": conv['account_id'],
                     "email_id": conv['email_id'],
+                    "emp_id": conv.get('emp_id'),  # Include emp_id if available
                     "conversation_id": conv['conversation_id'],
                     "transcript_url": f"{base_url}/api/v1/download/secure/{transcript_token}",
                     "audio_url": f"{base_url}/api/v1/download/secure/{audio_token}",

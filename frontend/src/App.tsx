@@ -4,7 +4,7 @@ import './App.css';
 function App() {
   const [widgetReady, setWidgetReady] = useState(false);
   const scriptLoadedRef = useRef(false);
-  const [urlParams, setUrlParams] = useState<{ email_id?: string, account_id?: string }>({});
+  const [urlParams, setUrlParams] = useState<{ email_id?: string, account_id?: string, emp_id?: string }>({});
 
   useEffect(() => {
     // Extract URL parameters on component mount
@@ -12,7 +12,8 @@ function App() {
       const urlSearchParams = new URLSearchParams(window.location.search);
       const params = {
         email_id: urlSearchParams.get('email_id') || undefined,
-        account_id: urlSearchParams.get('account_id') || undefined
+        account_id: urlSearchParams.get('account_id') || undefined,
+        emp_id: urlSearchParams.get('emp_id') || undefined
       };
       setUrlParams(params);
       console.log('📋 URL Parameters extracted:', params);
@@ -147,6 +148,7 @@ function App() {
           conversation_id: conversationId,
           email_id: urlParams.email_id,
           account_id: urlParams.account_id,
+          emp_id: urlParams.emp_id,
           send_email: true
         })
       });
@@ -193,6 +195,10 @@ function App() {
       dynamicVariables.account_id = urlParams.account_id;
     }
 
+    if (urlParams.emp_id) {
+      dynamicVariables.emp_id = urlParams.emp_id;
+    }
+
     // Add source information
     dynamicVariables.source = 'fedfina-app';
     dynamicVariables.timestamp = new Date().toISOString();
@@ -228,8 +234,10 @@ function App() {
           <br />
           👤 Account ID: {urlParams.account_id || <span style={{ color: '#dc3545' }}>Not provided</span>}
           <br />
+          🆔 Employee ID: {urlParams.emp_id || <span style={{ color: '#dc3545' }}>Not provided</span>}
+          <br />
           <small style={{ color: '#6c757d', marginTop: '5px', display: 'block' }}>
-            💡 Use URL format: ?email_id=your@email.com&account_id=your_account
+            💡 Use URL format: ?email_id=your@email.com&account_id=your_account&emp_id=your_employee
           </small>
         </div>
       </header>
@@ -303,7 +311,7 @@ function App() {
         )}
 
         {/* Test Section */}
-        {urlParams.email_id && urlParams.account_id && (
+        {urlParams.email_id && urlParams.account_id && urlParams.emp_id && (
           <div style={{
             margin: '20px',
             padding: '15px',
