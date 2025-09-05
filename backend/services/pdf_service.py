@@ -472,7 +472,11 @@ class PDFService:
                     content_parts.append(formatted_expense)
             
             # Add personal expenses
-            if expense_summary.personal_expenses and expense_summary.personal_expenses != ["No specific information provided"]:
+            if (expense_summary.personal_expenses and 
+                expense_summary.personal_expenses != ["No specific information provided"] and
+                expense_summary.personal_expenses != ["No specific personal expense information provided"] and
+                not (len(expense_summary.personal_expenses) == 1 and 
+                     expense_summary.personal_expenses[0] in ["No specific information provided", "No specific personal expense information provided"])):
                 content_parts.append("<b>Personal Expenses:</b>")
                 for expense in expense_summary.personal_expenses:
                     formatted_expense = self._format_currency_text(expense)
@@ -515,7 +519,11 @@ class PDFService:
             
             # Add personal expenses
             personal_expenses = expense_summary.get('personal_expenses', [])
-            if personal_expenses and personal_expenses != ["No specific information provided"]:
+            if (personal_expenses and 
+                personal_expenses != ["No specific information provided"] and
+                personal_expenses != ["No specific personal expense information provided"] and
+                not (len(personal_expenses) == 1 and 
+                     personal_expenses[0] in ["No specific information provided", "No specific personal expense information provided"])):
                 content_parts.append("<b>Personal Expenses:</b>")
                 for expense in personal_expenses:
                     formatted_expense = self._format_currency_text(expense)
