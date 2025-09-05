@@ -31,45 +31,43 @@ class PDFService:
     def _register_unicode_fonts(self):
         """Register Unicode-compatible fonts for better symbol support"""
         try:
-            # Try to register DejaVu fonts which have good Unicode coverage including Rupee symbol
-            # These fonts are commonly available on most systems
             import os
             from reportlab.lib.fonts import addMapping
             
-            # Try to find DejaVu fonts in common locations
-            font_paths = [
-                '/usr/share/fonts/truetype/dejavu/',  # Ubuntu/Debian
-                '/System/Library/Fonts/',  # macOS
-                '/Windows/Fonts/',  # Windows
-                '/usr/share/fonts/TTF/',  # Arch Linux
-                '/usr/share/fonts/truetype/',  # General Linux
+            # Try to register Vera fonts which come with ReportLab and support Rupee symbol
+            vera_fonts_found = False
+            
+            # Vera font paths (ReportLab built-in fonts)
+            vera_paths = [
+                '/usr/local/lib/python3.11/site-packages/reportlab/fonts/Vera.ttf',
+                '/usr/local/lib/python3.11/site-packages/reportlab/fonts/VeraBd.ttf',
+                '/usr/local/lib/python3.11/site-packages/reportlab/fonts/VeraIt.ttf',
+                '/usr/local/lib/python3.11/site-packages/reportlab/fonts/VeraBI.ttf',
             ]
             
-            dejavu_sans_found = False
-            
-            for font_path in font_paths:
-                if os.path.exists(font_path):
-                    # Try DejaVu Sans
-                    dejavu_sans_path = os.path.join(font_path, 'DejaVuSans.ttf')
-                    dejavu_sans_bold_path = os.path.join(font_path, 'DejaVuSans-Bold.ttf')
+            # Check if Vera fonts exist
+            if all(os.path.exists(path) for path in vera_paths):
+                try:
+                    # Register Vera fonts
+                    pdfmetrics.registerFont(TTFont('Vera', vera_paths[0]))
+                    pdfmetrics.registerFont(TTFont('Vera-Bold', vera_paths[1]))
+                    pdfmetrics.registerFont(TTFont('Vera-Italic', vera_paths[2]))
+                    pdfmetrics.registerFont(TTFont('Vera-BoldItalic', vera_paths[3]))
                     
-                    if os.path.exists(dejavu_sans_path):
-                        try:
-                            pdfmetrics.registerFont(TTFont('DejaVuSans', dejavu_sans_path))
-                            if os.path.exists(dejavu_sans_bold_path):
-                                pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', dejavu_sans_bold_path))
-                            addMapping('DejaVuSans', 0, 0, 'DejaVuSans')
-                            addMapping('DejaVuSans', 1, 0, 'DejaVuSans-Bold')
-                            dejavu_sans_found = True
-                            logger.info("Successfully registered DejaVu Sans fonts for Unicode support")
-                            break
-                        except Exception as e:
-                            logger.warning(f"Failed to register DejaVu Sans font from {dejavu_sans_path}: {e}")
-                            continue
+                    # Set up font mapping
+                    addMapping('Vera', 0, 0, 'Vera')
+                    addMapping('Vera', 1, 0, 'Vera-Bold')
+                    addMapping('Vera', 0, 1, 'Vera-Italic')
+                    addMapping('Vera', 1, 1, 'Vera-BoldItalic')
+                    
+                    vera_fonts_found = True
+                    logger.info("Successfully registered Vera fonts for Unicode support including Rupee symbol")
+                except Exception as e:
+                    logger.warning(f"Failed to register Vera fonts: {e}")
             
-            if not dejavu_sans_found:
+            if not vera_fonts_found:
                 # Fallback: Use Helvetica with manual Rupee symbol replacement
-                logger.warning("DejaVu fonts not found, will use Helvetica with Rupee symbol fallback")
+                logger.warning("Vera fonts not found, will use Helvetica with Rupee symbol fallback")
                 self.use_unicode_fonts = False
             else:
                 self.use_unicode_fonts = True
@@ -81,8 +79,8 @@ class PDFService:
     def _setup_custom_styles(self):
         """Setup custom paragraph styles for the report"""
         # Choose font family based on Unicode support
-        font_family = 'DejaVuSans' if self.use_unicode_fonts else 'Helvetica'
-        font_family_bold = 'DejaVuSans-Bold' if self.use_unicode_fonts else 'Helvetica-Bold'
+        font_family = 'Vera' if self.use_unicode_fonts else 'Helvetica'
+        font_family_bold = 'Vera-Bold' if self.use_unicode_fonts else 'Helvetica-Bold'
         
         # Custom title style
         self.styles.add(ParagraphStyle(
@@ -133,7 +131,7 @@ class PDFService:
             return text
             
         if self.use_unicode_fonts:
-            # DejaVu fonts support the Rupee symbol properly
+            # Vera fonts support the Rupee symbol properly
             return text
         else:
             # Fallback: Replace Rupee symbol with "Rs." for better compatibility
