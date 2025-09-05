@@ -454,6 +454,7 @@ class PDFService:
 
     def _extract_expense_info_from_pydantic(self, parsed_summary: OpenAIStructuredResponse) -> str:
         """Extract expense information from Pydantic model"""
+        logger.info("Using Pydantic path for expense extraction")
         try:
             expense_summary = parsed_summary.expense_summary
             
@@ -510,6 +511,7 @@ class PDFService:
 
     def _extract_expense_info_from_json(self, parsed_summary: dict) -> str:
         """Extract expense information from JSON data"""
+        logger.info("Using JSON path for expense extraction")
         try:
             expense_summary = parsed_summary.get('expense_summary', {})
             
@@ -531,6 +533,14 @@ class PDFService:
             
             # Add personal expenses
             personal_expenses = expense_summary.get('personal_expenses', [])
+            logger.info(f"JSON Personal expenses data: {personal_expenses}")
+            logger.info(f"JSON Personal expenses type: {type(personal_expenses)}")
+            if personal_expenses:
+                logger.info(f"JSON Personal expenses length: {len(personal_expenses)}")
+                if len(personal_expenses) > 0:
+                    logger.info(f"JSON First expense: {personal_expenses[0]}")
+                    logger.info(f"JSON First expense type: {type(personal_expenses[0])}")
+            
             if (personal_expenses and 
                 personal_expenses != ["No specific information provided"] and
                 personal_expenses != ["No specific personal expense information provided"] and
@@ -538,8 +548,12 @@ class PDFService:
                      personal_expenses[0] in ["No specific information provided", "No specific personal expense information provided"])):
                 content_parts.append("<b>Personal Expenses:</b>")
                 for expense in personal_expenses:
+                    logger.info(f"JSON Processing expense: {expense} (type: {type(expense)})")
                     formatted_expense = self._format_currency_text(expense)
+                    logger.info(f"JSON Formatted expense: {formatted_expense}")
                     content_parts.append(formatted_expense)
+            else:
+                logger.info("JSON Skipping personal expenses section - no valid data")
             
             # Add total monthly expenses
             total_expenses = expense_summary.get('total_monthly_expenses', '')
