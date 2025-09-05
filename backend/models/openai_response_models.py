@@ -24,6 +24,12 @@ class IncomeSummary(BaseModel):
     details: List[str] = Field(default_factory=list, description="Detailed income breakdown with calculations (e.g., 'Breakfast: 30-40 customers @ ₹80-90 per customer = ₹2,400-3,600')")
     total_monthly_income: str = Field(default="No specific information provided", description="Total monthly income with range if applicable")
     seasonal_variations: str = Field(default="No specific information provided", description="Seasonal income patterns and fluctuations")
+    
+    def __init__(self, **data):
+        # Handle case where details might be a string instead of list
+        if 'details' in data and isinstance(data['details'], str):
+            data['details'] = [data['details']]
+        super().__init__(**data)
 
 
 class ExpenseSummary(BaseModel):
@@ -32,6 +38,15 @@ class ExpenseSummary(BaseModel):
     business_expenses: List[str] = Field(default_factory=list, description="Business expenses with detailed amounts and ranges (e.g., 'Staff Salaries: ₹3,00,000 to ₹3,50,000 per month')")
     personal_expenses: List[str] = Field(default_factory=list, description="Personal expenses with detailed amounts and ranges (e.g., 'Home Expenses: ₹10,000 to ₹15,000 per month')")
     total_monthly_expenses: str = Field(default="No specific information provided", description="Total monthly expenses with range if applicable")
+    
+    def __init__(self, **data):
+        # Handle case where personal_expenses might be a string instead of list
+        if 'personal_expenses' in data and isinstance(data['personal_expenses'], str):
+            data['personal_expenses'] = [data['personal_expenses']]
+        # Handle case where business_expenses might be a string instead of list
+        if 'business_expenses' in data and isinstance(data['business_expenses'], str):
+            data['business_expenses'] = [data['business_expenses']]
+        super().__init__(**data)
 
 
 class LoanDisbursementSummary(BaseModel):
@@ -41,6 +56,12 @@ class LoanDisbursementSummary(BaseModel):
     purposes: List[str] = Field(default_factory=list, description="Detailed loan purposes with specific amounts and utilization (e.g., 'Purchase materials and supplies: ₹1,50,000 for inventory expansion')")
     repayment_plan: str = Field(default="No specific information provided", description="EMI capacity and repayment details with ranges (e.g., '₹40,000 to ₹50,000 per month')")
     timeline: str = Field(default="No specific information provided", description="Expected timeline for loan processing or utilization")
+    
+    def __init__(self, **data):
+        # Handle case where purposes might be a string instead of list
+        if 'purposes' in data and isinstance(data['purposes'], str):
+            data['purposes'] = [data['purposes']]
+        super().__init__(**data)
 
 
 class Risks(BaseModel):
@@ -48,12 +69,24 @@ class Risks(BaseModel):
     summary: str = Field(..., description="Brief overview of identified risks")
     multiple_speakers: str = Field(default="No", description="Multiple speakers detection")
     details: List[str] = Field(default_factory=list, description="Risk details with bullet points")
+    
+    def __init__(self, **data):
+        # Handle case where details might be a string instead of list
+        if 'details' in data and isinstance(data['details'], str):
+            data['details'] = [data['details']]
+        super().__init__(**data)
 
 
 class Opportunities(BaseModel):
     """Opportunity assessment from the interview"""
     summary: str = Field(..., description="Brief overview of business strengths and positive opportunities")
     details: List[str] = Field(default_factory=list, description="Opportunity details with bullet points")
+    
+    def __init__(self, **data):
+        # Handle case where details might be a string instead of list
+        if 'details' in data and isinstance(data['details'], str):
+            data['details'] = [data['details']]
+        super().__init__(**data)
 
 
 class ConversationQuality(BaseModel):
