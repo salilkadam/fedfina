@@ -47,18 +47,13 @@ class Risks(BaseModel):
     """Risk assessment from the interview"""
     summary: str = Field(..., description="Brief overview of identified risks")
     multiple_speakers: str = Field(default="No", description="Multiple speakers detection")
-    financial_risks: List[str] = Field(default_factory=list, description="Financial risks with bullet points")
-    business_risks: List[str] = Field(default_factory=list, description="Business risks with bullet points")
-    other_concerns: List[str] = Field(default_factory=list, description="Other concerns with bullet points")
+    details: List[str] = Field(default_factory=list, description="Risk details with bullet points")
 
 
 class Opportunities(BaseModel):
     """Opportunity assessment from the interview"""
     summary: str = Field(..., description="Brief overview of business strengths and positive opportunities")
-    business_strengths: List[str] = Field(default_factory=list, description="Business strengths and positive points with bullet points")
-    market_opportunities: List[str] = Field(default_factory=list, description="Market opportunities with bullet points")
-    competitive_advantages: List[str] = Field(default_factory=list, description="Competitive advantages with bullet points")
-    growth_potential: List[str] = Field(default_factory=list, description="Growth potential areas with bullet points")
+    details: List[str] = Field(default_factory=list, description="Opportunity details with bullet points")
 
 
 class ConversationQuality(BaseModel):
@@ -66,14 +61,6 @@ class ConversationQuality(BaseModel):
     completeness: str = Field(default="Not assessed", description="Assessment of conversation completeness: 'Complete', 'Partial', or 'Incomplete'")
     financial_information_available: str = Field(default="Not assessed", description="Yes/No - whether sufficient financial information was discussed for loan assessment")
     recommendation: str = Field(default="No recommendation provided", description="Recommendation based on conversation quality: 'Proceed with loan assessment', 'Schedule follow-up interview', or 'Insufficient information for assessment'")
-
-
-class Recommendations(BaseModel):
-    """Recommendations based on conversation analysis"""
-    loan_recommendation: str = Field(default="No recommendation provided", description="Loan-specific recommendations or indication of insufficient information")
-    growth_recommendations: str = Field(default="No recommendation provided", description="Growth and expansion recommendations or indication of insufficient information")
-    financial_management_recommendations: str = Field(default="No recommendation provided", description="Financial management recommendations or indication of insufficient information")
-    general_recommendations: str = Field(default="No recommendation provided", description="General recommendations or indication of insufficient information")
 
 
 class OpenAIStructuredResponse(BaseModel):
@@ -85,7 +72,6 @@ class OpenAIStructuredResponse(BaseModel):
     loan_disbursement_summary: Optional[LoanDisbursementSummary] = None
     risks: Optional[Risks] = None
     opportunities: Optional[Opportunities] = None
-    recommendations: Optional[Recommendations] = None
     conversation_quality: Optional[ConversationQuality] = None
     
     class Config:

@@ -641,23 +641,10 @@ class PDFService:
             if risks.multiple_speakers and risks.multiple_speakers != "No":
                 content_parts.append(f"<b>Multiple Speakers Risk:</b> {risks.multiple_speakers}")
             
-            # Add financial risks
-            if risks.financial_risks and risks.financial_risks != ["No specific information provided"]:
-                content_parts.append("<b>Financial Risks:</b>")
-                for risk in risks.financial_risks:
+            # Add risks details
+            if hasattr(risks, 'details') and risks.details and risks.details != ["No specific information provided"]:
+                for risk in risks.details:
                     content_parts.append(risk)
-            
-            # Add business risks
-            if risks.business_risks and risks.business_risks != ["No specific information provided"]:
-                content_parts.append("<b>Business Risks:</b>")
-                for risk in risks.business_risks:
-                    content_parts.append(risk)
-            
-            # Add other concerns
-            if risks.other_concerns and risks.other_concerns != ["No specific information provided"]:
-                content_parts.append("<b>Other Concerns:</b>")
-                for concern in risks.other_concerns:
-                    content_parts.append(concern)
             
             if content_parts:
                 return "<br/><br/>".join(content_parts)
@@ -689,26 +676,11 @@ class PDFService:
                 content_parts.append(f"<b>Multiple Speakers Risk:</b> {multiple_speakers}")
             # If it's "No" or not provided, don't add as a risk
             
-            # Add financial risks
-            financial_risks = risks.get('financial_risks', [])
-            if financial_risks and financial_risks != ["No specific information provided"]:
-                content_parts.append("<b>Financial Risks:</b>")
-                for risk in financial_risks:
+            # Add risks details
+            risks_details = risks.get('details', [])
+            if risks_details and risks_details != ["No specific information provided"]:
+                for risk in risks_details:
                     content_parts.append(risk)
-            
-            # Add business risks
-            business_risks = risks.get('business_risks', [])
-            if business_risks and business_risks != ["No specific information provided"]:
-                content_parts.append("<b>Business Risks:</b>")
-                for risk in business_risks:
-                    content_parts.append(risk)
-            
-            # Add other concerns
-            other_concerns = risks.get('other_concerns', [])
-            if other_concerns and other_concerns != ["No specific information provided"]:
-                content_parts.append("<b>Other Concerns:</b>")
-                for concern in other_concerns:
-                    content_parts.append(concern)
             
             if content_parts:
                 return "<br/><br/>".join(content_parts)
@@ -1413,29 +1385,10 @@ class PDFService:
             if opportunities.summary and opportunities.summary != "No specific information provided":
                 content_parts.append(f"<b>Overview:</b> {opportunities.summary}")
             
-            # Add business strengths
-            if opportunities.business_strengths and opportunities.business_strengths != ["No specific information provided"]:
-                content_parts.append("<b>Business Strengths:</b>")
-                for strength in opportunities.business_strengths:
-                    content_parts.append(strength)
-            
-            # Add market opportunities
-            if opportunities.market_opportunities and opportunities.market_opportunities != ["No specific information provided"]:
-                content_parts.append("<b>Market Opportunities:</b>")
-                for opportunity in opportunities.market_opportunities:
+            # Add opportunities details
+            if hasattr(opportunities, 'details') and opportunities.details and opportunities.details != ["No specific information provided"]:
+                for opportunity in opportunities.details:
                     content_parts.append(opportunity)
-            
-            # Add competitive advantages
-            if opportunities.competitive_advantages and opportunities.competitive_advantages != ["No specific information provided"]:
-                content_parts.append("<b>Competitive Advantages:</b>")
-                for advantage in opportunities.competitive_advantages:
-                    content_parts.append(advantage)
-            
-            # Add growth potential
-            if opportunities.growth_potential and opportunities.growth_potential != ["No specific information provided"]:
-                content_parts.append("<b>Growth Potential:</b>")
-                for potential in opportunities.growth_potential:
-                    content_parts.append(potential)
             
             if content_parts:
                 return "<br/><br/>".join(content_parts)
@@ -1459,33 +1412,11 @@ class PDFService:
             if summary and summary != "No specific information provided":
                 content_parts.append(f"<b>Overview:</b> {summary}")
             
-            # Add business strengths
-            business_strengths = opportunities.get('business_strengths', [])
-            if business_strengths and business_strengths != ["No specific information provided"]:
-                content_parts.append("<b>Business Strengths:</b>")
-                for strength in business_strengths:
-                    content_parts.append(strength)
-            
-            # Add market opportunities
-            market_opportunities = opportunities.get('market_opportunities', [])
-            if market_opportunities and market_opportunities != ["No specific information provided"]:
-                content_parts.append("<b>Market Opportunities:</b>")
-                for opportunity in market_opportunities:
+            # Add opportunities details
+            opportunities_details = opportunities.get('details', [])
+            if opportunities_details and opportunities_details != ["No specific information provided"]:
+                for opportunity in opportunities_details:
                     content_parts.append(opportunity)
-            
-            # Add competitive advantages
-            competitive_advantages = opportunities.get('competitive_advantages', [])
-            if competitive_advantages and competitive_advantages != ["No specific information provided"]:
-                content_parts.append("<b>Competitive Advantages:</b>")
-                for advantage in competitive_advantages:
-                    content_parts.append(advantage)
-            
-            # Add growth potential
-            growth_potential = opportunities.get('growth_potential', [])
-            if growth_potential and growth_potential != ["No specific information provided"]:
-                content_parts.append("<b>Growth Potential:</b>")
-                for potential in growth_potential:
-                    content_parts.append(potential)
             
             if content_parts:
                 return "<br/><br/>".join(content_parts)
