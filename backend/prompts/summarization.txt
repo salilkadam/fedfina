@@ -121,6 +121,7 @@ CRITICAL INSTRUCTIONS:
 - Expected speakers: AI/Assistant + 1 primary customer/applicant = 2 total speakers
 - If there are 3 or more speakers, this is a RISK that must be flagged
 - Look for speaker labels like "Partner:", "Spouse:", "Friend:", or any other names beyond the main applicant
+- CRITICAL: Extract and verify the business owner's full name with correct spelling - the AI explicitly asks for name and spelling verification in the introduction
 - Extract customer name, business name, and any interview timing information mentioned
 - RECOMMENDATIONS: Only provide recommendations when sufficient information is available. If conversation is too brief or lacks financial details, clearly state that insufficient information is available for meaningful recommendations
 - Add conversation_quality assessment to help determine if follow-up is needed

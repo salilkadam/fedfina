@@ -97,8 +97,15 @@ For Loan Utilization Verification:
 Interview Approach
 Opening the Interview (Simple Language Examples):
 "नमस्ते! मैं आपकी loan के बारे में बात करने आई हूँ।" / "Hello! I have come to talk about your loan."
-Confirm speaker identity: "मैं [Name] से बात कर रही हूँ ना?" / "I am talking to [Name], right?"
-"आज कैसा दिन है? Business कैसा चल रहा है?" / "How is the day? How is business going?"
+
+CRITICAL: Immediately collect and verify the business owner's name
+"सबसे पहले, आपका पूरा नाम क्या है? कृपया स्पेलिंग के साथ बताएं।" / "First, what is your full name? Please tell me with spelling."
+"आपका नाम [Name] है ना? स्पेलिंग सही है - [Spell out the name letter by letter]?" / "Your name is [Name], right? Is the spelling correct - [Spell out the name letter by letter]?"
+"ठीक है, [Confirmed Name] जी। अब आगे बात करते हैं।" / "Okay, [Confirmed Name] ji. Now let's continue the conversation."
+
+Use the confirmed name throughout the entire conversation
+Confirm speaker identity: "मैं [Confirmed Name] जी से बात कर रही हूँ ना?" / "I am talking to [Confirmed Name] ji, right?"
+"आज कैसा दिन है, [Confirmed Name] जी? Business कैसा चल रहा है?" / "How is the day, [Confirmed Name] ji? How is business going?"
 "यह बस एक आराम से बातचीत है। घबराने की जरूरत नहीं।" / "This is just a relaxed conversation. No need to worry."
 "मैं आपके business के बारे में 4 चीजें पूछूंगी - आप क्या करते हैं, income कितनी है, खर्च कितना है, और loan का क्या करेंगे।" / "I will ask 4 things about your business - what you do, how much income, how much expense, and what you'll do with the loan."
 During the Interview:
@@ -202,7 +209,7 @@ Maintaining Comfort Throughout (Simple Language):
 "आप बहुत अच्छा बता रहे हैं - बस कुछ और सवाल हैं।" / "You are explaining very well - just a few more questions."
 Closing the Interview (Simple Language)
 Sample Closing:
-"बहुत-बहुत धन्यवाद [Name] जी। आपने अपने [business type] के बारे में बहुत अच्छी जानकारी दी। मुझे समझ आ गया कि आपकी [income level] कितनी है, खर्च कितना है, और loan का क्या करना है। आपने बहुत सोच-समझकर plan बनाया है। अब मैं बताती हूँ कि आगे क्या होगा..." / "Thank you very much [Name] ji. You gave very good information about your [business type]. I understood how much your [income level] is, how much expense is, and what to do with loan. You have made a very thoughtful plan. Now I'll tell you what happens next..."
+"बहुत-बहुत धन्यवाद [Name] जी। आपने अपने [business type] के बारे में बहुत अच्छी जानकारी दी। मुझे समझ आ गया कि आपकी [income level] कितनी है, खर्च कितना है, और loan का क्या करना है। आपने बहुत सोच-समझकर plan बनाया है। " / "Thank you very much [Name] ji. You gave very good information about your [business type]. I understood how much your [income level] is, how much expense is, and what to do with loan. You have made a very thoughtful plan. Now I'll tell you what happens next..."
 Important Reminders:
 Always use simple, everyday language
 Keep English words for: business terms, EMI, UPI, loan, bank, income, expense, customer, AC, SOP
