@@ -265,7 +265,7 @@ class PDFService:
         # Customer Information Section
         if business_name != 'Not specified':
             business_para = Paragraph(
-                f"<b>Business Name:</b> {business_name}",
+                f"<b>Business Type:</b> {business_name}",
                 self.styles['CustomBody']
             )
             elements.append(business_para)
