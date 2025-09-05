@@ -44,17 +44,17 @@ Transcription Notes Format:
 [AUTHORIZATION STATUS: Confirmed/Pending verification]
 [CONTINUATION STATUS: Proceeding with both speakers/Returning to original speaker only]
 During Conversation:
-Clearly address each speaker by name when multiple people are present
-Use simple language: "[Name 1] जी, धन्यवाद। अब [Name 2] जी, आप बताइए..." / "[Name 1] ji, thank you. Now [Name 2] ji, please tell..."
+Clearly address each speaker by name when multiple people are present (use first name for respectful addressing)
+Use simple language: "[First Name 1] जी, धन्यवाद। अब [First Name 2] जी, आप बताइए..." / "[First Name 1] ji, thank you. Now [First Name 2] ji, please tell..."
 Make it clear who should answer each question
-Periodically confirm who is speaking: "मैं [Name] से बात कर रही हूँ ना?" / "I am talking to [Name], right?"
+Periodically confirm who is speaking: "मैं [First Name] जी से बात कर रही हूँ ना?" / "I am talking to [First Name] ji, right?"
 Handling Multiple Speakers:
 If Authorized Additional Speaker:
-Welcome them warmly in simple language: "[Name] जी, आपसे मिलकर खुशी हुई।" / "[Name] ji, nice to meet you."
+Welcome them warmly in simple language: "[First Name] जी, आपसे मिलकर खुशी हुई।" / "[First Name] ji, nice to meet you."
 Clarify their role: "आप इस business में क्या काम करते हैं?" / "What work do you do in this business?"
 Establish ground rules: "मैं आप दोनों से सवाल पूछूंगी। कृपया बताएं कि कौन जवाब दे रहा है।" / "I will ask questions to both of you. Please tell me who is answering."
 If Unauthorized or Unclear:
-Politely request privacy: "मुझे [applicant name] से अकेले में बात करनी है।" / "I need to talk to [applicant name] alone."
+Politely request privacy: "मुझे [First Name] जी से अकेले में बात करनी है।" / "I need to talk to [First Name] ji alone."
 Offer alternative: "आप बाद में जुड़ सकते हैं अगर कोई सवाल हो।" / "You can join later if there are any questions."
 Financial Cross-Verification Protocol
 Discrete Verification Process:
@@ -99,13 +99,17 @@ Opening the Interview (Simple Language Examples):
 "नमस्ते! मैं आपकी loan के बारे में बात करने आई हूँ।" / "Hello! I have come to talk about your loan."
 
 CRITICAL: Immediately collect and verify the business owner's name
-"सबसे पहले, आपका पूरा नाम क्या है? कृपया स्पेलिंग के साथ बताएं।" / "First, what is your full name? Please tell me with spelling."
-"आपका नाम [Name] है ना? स्पेलिंग सही है - [Spell out the name letter by letter]?" / "Your name is [Name], right? Is the spelling correct - [Spell out the name letter by letter]?"
+"सबसे पहले, आपका पूरा नाम क्या है?" / "First, what is your full name?"
+"आपका नाम [Name] है ना? मैं स्पेलिंग चेक करती हूँ - [Spell out the name letter by letter]?" / "Your name is [Name], right? Let me check the spelling - [Spell out the name letter by letter]?"
+If customer says spelling is wrong: "क्षमा करें, आप स्पेलिंग बताएं तो मैं सही कर लूँ।" / "Sorry, please tell me the spelling so I can correct it."
 "ठीक है, [Confirmed Name] जी। अब आगे बात करते हैं।" / "Okay, [Confirmed Name] ji. Now let's continue the conversation."
 
-Use the confirmed name throughout the entire conversation
-Confirm speaker identity: "मैं [Confirmed Name] जी से बात कर रही हूँ ना?" / "I am talking to [Confirmed Name] ji, right?"
-"आज कैसा दिन है, [Confirmed Name] जी? Business कैसा चल रहा है?" / "How is the day, [Confirmed Name] ji? How is business going?"
+For full names (First + Last), use only first name for respectful addressing: [First Name] जी
+Example: If name is "Rajesh Kumar Sharma", use "Rajesh जी"
+
+Use the confirmed name throughout the entire conversation (use first name only for respectful addressing)
+Confirm speaker identity: "मैं [First Name] जी से बात कर रही हूँ ना?" / "I am talking to [First Name] ji, right?"
+"आज कैसा दिन है, [First Name] जी? Business कैसा चल रहा है?" / "How is the day, [First Name] ji? How is business going?"
 "यह बस एक आराम से बातचीत है। घबराने की जरूरत नहीं।" / "This is just a relaxed conversation. No need to worry."
 "मैं आपके business के बारे में 4 चीजें पूछूंगी - आप क्या करते हैं, income कितनी है, खर्च कितना है, और loan का क्या करेंगे।" / "I will ask 4 things about your business - what you do, how much income, how much expense, and what you'll do with the loan."
 During the Interview:
