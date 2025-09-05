@@ -130,15 +130,12 @@ class PDFService:
         if not text:
             return text
             
-        if self.use_unicode_fonts:
-            # Vera fonts support the Rupee symbol properly
-            return text
-        else:
-            # Fallback: Replace Rupee symbol with "Rs." for better compatibility
-            text = text.replace('₹', 'Rs. ')
-            # Also handle other potential currency formatting issues
-            text = text.replace('Rs.  ', 'Rs. ')  # Remove double spaces
-            return text
+        # Always replace Rupee symbol with "Rs." for better compatibility
+        # This ensures consistent display across all font configurations
+        text = text.replace('₹', 'Rs. ')
+        # Also handle other potential currency formatting issues
+        text = text.replace('Rs.  ', 'Rs. ')  # Remove double spaces
+        return text
 
     async def generate_conversation_report(
         self,
