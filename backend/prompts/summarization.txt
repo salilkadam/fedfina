@@ -70,54 +70,54 @@ Generate a structured JSON response with the following format:
     "summary": "Brief overview of identified risks and concerns if any were discussed, or 'No specific risks were identified in this conversation'",
     "multiple_speakers": "IMPORTANT: Count all unique speakers in the conversation. If there are MORE than 2 speakers (AI + 1 customer), respond with 'Yes - Additional speakers detected: [list names]'. If only AI and 1 customer are speaking, respond with 'No'.",
     "financial_risks": [
-      "• When financial risks ARE identified, provide specific details as bullet points",
-      "• When financial risks ARE identified, provide specific details as bullet points",
+      "• When financial risks ARE identified (income instability, debt burden, cash flow issues, etc.), provide specific details as bullet points",
+      "• When financial risks ARE identified (high expense ratios, insufficient savings, etc.), provide specific details as bullet points",
       "• If no financial risks were discussed, use: 'No specific financial risks identified'"
     ],
     "business_risks": [
-      "• When business risks ARE identified, provide specific details as bullet points",
-      "• When business risks ARE identified, provide specific details as bullet points",
+      "• When business risks ARE identified (competition, location issues, supplier dependency, etc.), provide specific details as bullet points",
+      "• When business risks ARE identified (seasonal fluctuations, market changes, etc.), provide specific details as bullet points",
       "• If no business risks were discussed, use: 'No specific business risks identified'"
     ],
     "other_concerns": [
-      "• When other concerns ARE mentioned, provide specific details as bullet points",
-      "• When other concerns ARE mentioned, provide specific details as bullet points",
+      "• When other concerns ARE mentioned (regulatory issues, health concerns, family issues, etc.), provide specific details as bullet points",
+      "• When other concerns ARE mentioned (personal circumstances, external factors, etc.), provide specific details as bullet points",
       "• If no other concerns were discussed, use: 'No other concerns identified'"
     ]
   },
   "opportunities": {
     "summary": "Brief overview of business strengths and positive opportunities if any were identified, or 'No specific opportunities were identified in this conversation'",
     "business_strengths": [
-      "• When business strengths ARE mentioned or evident, provide specific details as bullet points",
-      "• When business strengths ARE mentioned or evident, provide specific details as bullet points",
+      "• When business strengths ARE mentioned (good location, loyal customers, quality products, etc.), provide specific details as bullet points",
+      "• When business strengths ARE mentioned (experience, reputation, unique offerings, etc.), provide specific details as bullet points",
       "• If no strengths were discussed, use: 'No specific business strengths identified'"
     ],
     "market_opportunities": [
-      "• When market opportunities ARE mentioned, provide specific details as bullet points",
-      "• When market opportunities ARE mentioned, provide specific details as bullet points",
+      "• When market opportunities ARE mentioned (growing customer base, new services, expansion potential, etc.), provide specific details as bullet points",
+      "• When market opportunities ARE mentioned (local demand, seasonal peaks, underserved segments, etc.), provide specific details as bullet points",
       "• If no market opportunities were discussed, use: 'No specific market opportunities identified'"
     ],
     "competitive_advantages": [
-      "• When competitive advantages ARE mentioned, provide specific details as bullet points",
-      "• When competitive advantages ARE mentioned, provide specific details as bullet points",
+      "• When competitive advantages ARE mentioned (better pricing, superior quality, faster service, etc.), provide specific details as bullet points",
+      "• When competitive advantages ARE mentioned (customer relationships, brand recognition, etc.), provide specific details as bullet points",
       "• If no competitive advantages were discussed, use: 'No specific competitive advantages identified'"
     ],
     "growth_potential": [
-      "• When growth potential IS mentioned, provide specific details as bullet points",
-      "• When growth potential IS mentioned, provide specific details as bullet points",
+      "• When growth potential IS mentioned (ability to hire more staff, expand operations, increase capacity, etc.), provide specific details as bullet points",
+      "• When growth potential IS mentioned (potential for higher revenue, new markets, etc.), provide specific details as bullet points",
       "• If no growth potential was discussed, use: 'No specific growth potential identified'"
     ]
   },
   "recommendations": {
-    "loan_recommendation": "When sufficient financial information is available, provide specific loan recommendations. If insufficient information, use 'Insufficient financial information available to provide specific loan recommendations'",
-    "growth_recommendations": "When business strengths and opportunities are identified, provide specific growth recommendations. If insufficient information, use 'Insufficient business information available to provide specific growth recommendations'",
-    "financial_management_recommendations": "When financial details are available, provide specific financial management recommendations. If insufficient information, use 'Insufficient financial information available to provide specific financial management recommendations'",
-    "general_recommendations": "When conversation provides sufficient context, provide relevant general recommendations. If conversation is too brief or incomplete, use 'Conversation was too brief to provide meaningful recommendations. A follow-up interview is recommended to gather sufficient information for proper assessment'"
+    "loan_recommendation": "When sufficient financial information is available, provide specific loan recommendations including amount assessment, repayment capacity analysis, and risk considerations. If insufficient information, use 'Insufficient financial information available to provide specific loan recommendations'",
+    "growth_recommendations": "When business strengths and opportunities are identified, provide specific growth recommendations such as expansion strategies, marketing improvements, or operational enhancements. If insufficient information, use 'Insufficient business information available to provide specific growth recommendations'",
+    "financial_management_recommendations": "When financial details are available, provide specific financial management recommendations such as cash flow management, expense control, or savings strategies. If insufficient information, use 'Insufficient financial information available to provide specific financial management recommendations'",
+    "general_recommendations": "When conversation provides sufficient context, provide relevant general recommendations for business improvement or loan preparation. If conversation is too brief or incomplete, use 'Conversation was too brief to provide meaningful recommendations. A follow-up interview is recommended to gather sufficient information for proper assessment'"
   },
   "conversation_quality": {
-    "completeness": "Assessment of conversation completeness: 'Complete', 'Partial', or 'Incomplete'",
-    "financial_information_available": "Yes/No - whether sufficient financial information was discussed for loan assessment",
-    "recommendation": "Recommendation based on conversation quality: 'Proceed with loan assessment', 'Schedule follow-up interview', or 'Insufficient information for assessment'"
+    "completeness": "Assessment of conversation completeness: 'Complete' (covered business type, income, expenses, loan requirements), 'Partial' (missing some key sections), or 'Incomplete' (missing multiple key sections)",
+    "financial_information_available": "Yes/No - whether sufficient financial information was discussed for loan assessment (income details, expense breakdown, loan amount, repayment capacity)",
+    "recommendation": "Recommendation based on conversation quality: 'Proceed with loan assessment' (sufficient information available), 'Schedule follow-up interview' (partial information, needs clarification), or 'Insufficient information for assessment' (major gaps in financial details)"
   }
 }
 
@@ -134,6 +134,7 @@ CRITICAL INSTRUCTIONS:
   * Income: Show customer count ranges, per-customer amounts, and daily totals (e.g., "Breakfast: 30-40 customers @ ₹80-90 per customer = ₹2,400-3,600")
   * Expenses: Show specific amounts or ranges for each expense category (e.g., "Staff Salaries: ₹3,00,000 to ₹3,50,000 per month")
   * Loans: Show specific amounts for different purposes and EMI capacity ranges
+  * Ownership: Indicate if business is owned or rented space.
 - Use bullet points (•) for all list items in detailed sections
 - If information is not available for a section, use "No specific information provided"
 - Be thorough in extracting ALL relevant details from the conversation, but do not invent any
