@@ -472,6 +472,14 @@ class PDFService:
                     content_parts.append(formatted_expense)
             
             # Add personal expenses
+            logger.info(f"Personal expenses data: {expense_summary.personal_expenses}")
+            logger.info(f"Personal expenses type: {type(expense_summary.personal_expenses)}")
+            if expense_summary.personal_expenses:
+                logger.info(f"Personal expenses length: {len(expense_summary.personal_expenses)}")
+                if len(expense_summary.personal_expenses) > 0:
+                    logger.info(f"First expense: {expense_summary.personal_expenses[0]}")
+                    logger.info(f"First expense type: {type(expense_summary.personal_expenses[0])}")
+            
             if (expense_summary.personal_expenses and 
                 expense_summary.personal_expenses != ["No specific information provided"] and
                 expense_summary.personal_expenses != ["No specific personal expense information provided"] and
@@ -479,8 +487,12 @@ class PDFService:
                      expense_summary.personal_expenses[0] in ["No specific information provided", "No specific personal expense information provided"])):
                 content_parts.append("<b>Personal Expenses:</b>")
                 for expense in expense_summary.personal_expenses:
+                    logger.info(f"Processing expense: {expense} (type: {type(expense)})")
                     formatted_expense = self._format_currency_text(expense)
+                    logger.info(f"Formatted expense: {formatted_expense}")
                     content_parts.append(formatted_expense)
+            else:
+                logger.info("Skipping personal expenses section - no valid data")
             
             # Add total monthly expenses
             if expense_summary.total_monthly_expenses and expense_summary.total_monthly_expenses != "No specific information provided":
