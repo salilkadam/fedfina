@@ -162,13 +162,13 @@ class PDFService:
         # Clean text encoding first
         text = self._clean_text_encoding(text)
 
-        # Try to use Unicode Rupee symbol if fonts support it, otherwise use Rs.
-        if self.use_unicode_fonts:
-            # Keep Unicode Rupee symbol for Vera fonts
-            text = text.replace('Rs.', '₹')
-            text = text.replace('Rs ', '₹')
-        else:
-            # Use Rs. for Helvetica fonts
+        # Replace corrupted Unicode symbols with proper Rupee symbol
+        text = text.replace('■', '₹')  # Replace the ■ symbol with ₹
+        text = text.replace('Rs.', '₹')
+        text = text.replace('Rs ', '₹')
+
+        # If not using Unicode fonts, convert back to Rs.
+        if not self.use_unicode_fonts:
             text = text.replace('₹', 'Rs. ')
 
         # Clean up formatting
@@ -895,15 +895,20 @@ class PDFService:
                 opportunities_info = parsed_summary.get('opportunities', {})
                 opportunities_summary = opportunities_info.get('summary', 'Not specified')
             
+            # Apply currency formatting to currency values
+            formatted_total_income = self._format_currency_text(total_income) if total_income != "Not specified" else "Not specified"
+            formatted_requested_amount = self._format_currency_text(requested_amount) if requested_amount != "Not specified" else "Not specified"
+            formatted_repayment_plan = self._format_currency_text(repayment_plan) if repayment_plan != "Not specified" else "Not specified"
+
             # Build table data
             table_data = [
                 ["Field", "Information"],
                 ["Customer Name", customer_name],
                 ["Business Name", business_name],
                 ["Interview Date", interview_date],
-                ["Total Monthly Income", total_income],
-                ["Requested Loan Amount", requested_amount],
-                ["Proposed Repayment", repayment_plan],
+                ["Total Monthly Income", formatted_total_income],
+                ["Requested Loan Amount", formatted_requested_amount],
+                ["Proposed Repayment", formatted_repayment_plan],
                 ["Key Opportunities", opportunities_summary[:100] + "..." if len(opportunities_summary) > 100 else opportunities_summary],
                 ["Multiple Speakers Risk", multiple_speakers]
             ]
