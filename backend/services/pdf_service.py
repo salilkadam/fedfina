@@ -33,10 +33,10 @@ class PDFService:
         try:
             import os
             from reportlab.lib.fonts import addMapping
-            
+
             # Try to register Vera fonts which come with ReportLab and support Rupee symbol
             vera_fonts_found = False
-            
+
             # Vera font paths (ReportLab built-in fonts)
             vera_paths = [
                 '/usr/local/lib/python3.11/site-packages/reportlab/fonts/Vera.ttf',
@@ -44,34 +44,44 @@ class PDFService:
                 '/usr/local/lib/python3.11/site-packages/reportlab/fonts/VeraIt.ttf',
                 '/usr/local/lib/python3.11/site-packages/reportlab/fonts/VeraBI.ttf',
             ]
-            
+
+            # Alternative Vera font paths (common locations)
+            alt_vera_paths = [
+                '/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf',
+                '/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf',
+                '/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Oblique.ttf',
+                '/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-BoldOblique.ttf',
+            ]
+
             # Check if Vera fonts exist
-            if all(os.path.exists(path) for path in vera_paths):
+            font_paths = vera_paths if all(os.path.exists(path) for path in vera_paths) else alt_vera_paths
+
+            if all(os.path.exists(path) for path in font_paths):
                 try:
-                    # Register Vera fonts
-                    pdfmetrics.registerFont(TTFont('Vera', vera_paths[0]))
-                    pdfmetrics.registerFont(TTFont('Vera-Bold', vera_paths[1]))
-                    pdfmetrics.registerFont(TTFont('Vera-Italic', vera_paths[2]))
-                    pdfmetrics.registerFont(TTFont('Vera-BoldItalic', vera_paths[3]))
-                    
+                    # Register fonts
+                    pdfmetrics.registerFont(TTFont('Vera', font_paths[0]))
+                    pdfmetrics.registerFont(TTFont('Vera-Bold', font_paths[1]))
+                    pdfmetrics.registerFont(TTFont('Vera-Italic', font_paths[2]))
+                    pdfmetrics.registerFont(TTFont('Vera-BoldItalic', font_paths[3]))
+
                     # Set up font mapping
                     addMapping('Vera', 0, 0, 'Vera')
                     addMapping('Vera', 1, 0, 'Vera-Bold')
                     addMapping('Vera', 0, 1, 'Vera-Italic')
                     addMapping('Vera', 1, 1, 'Vera-BoldItalic')
-                    
+
                     vera_fonts_found = True
-                    logger.info("Successfully registered Vera fonts for Unicode support including Rupee symbol")
+                    logger.info("Successfully registered Unicode fonts for better symbol support")
                 except Exception as e:
-                    logger.warning(f"Failed to register Vera fonts: {e}")
-            
+                    logger.warning(f"Failed to register Unicode fonts: {e}")
+
             if not vera_fonts_found:
                 # Fallback: Use Helvetica with manual Rupee symbol replacement
-                logger.warning("Vera fonts not found, will use Helvetica with Rupee symbol fallback")
+                logger.warning("Unicode fonts not found, will use Helvetica with text fallback")
                 self.use_unicode_fonts = False
             else:
                 self.use_unicode_fonts = True
-                
+
         except Exception as e:
             logger.error(f"Error registering Unicode fonts: {e}")
             self.use_unicode_fonts = False
@@ -125,16 +135,45 @@ class PDFService:
             textColor=colors.grey
         ))
 
+    def _clean_text_encoding(self, text: str) -> str:
+        """Clean up text encoding issues for PDF display"""
+        if not text:
+            return text
+
+        # Fix common encoding issues
+        text = text.strip()
+
+        # Remove excessive spaces between characters (common in JSON extraction)
+        import re
+        # Replace multiple spaces with single space, but preserve intentional spacing
+        text = re.sub(r'([a-zA-Z])\s{2,}([a-zA-Z])', r'\1 \2', text)
+
+        # Fix common placeholder text formatting
+        text = text.replace('No specific information provided', 'No specific information provided')
+        text = text.replace('No specific personal expense information provided', 'No specific personal expense information provided')
+
+        return text
+
     def _format_currency_text(self, text: str) -> str:
         """Format currency symbols in text for better PDF display"""
         if not text:
             return text
-            
-        # Always replace Rupee symbol with "Rs." for better compatibility
-        # This ensures consistent display across all font configurations
-        text = text.replace('₹', 'Rs. ')
-        # Also handle other potential currency formatting issues
+
+        # Clean text encoding first
+        text = self._clean_text_encoding(text)
+
+        # Try to use Unicode Rupee symbol if fonts support it, otherwise use Rs.
+        if self.use_unicode_fonts:
+            # Keep Unicode Rupee symbol for Vera fonts
+            text = text.replace('Rs.', '₹')
+            text = text.replace('Rs ', '₹')
+        else:
+            # Use Rs. for Helvetica fonts
+            text = text.replace('₹', 'Rs. ')
+
+        # Clean up formatting
         text = text.replace('Rs.  ', 'Rs. ')  # Remove double spaces
+        text = text.replace('₹  ', '₹ ')  # Remove double spaces after Rupee
         return text
 
     async def generate_conversation_report(
@@ -370,39 +409,43 @@ class PDFService:
         """Extract income information from JSON data"""
         try:
             income_summary = parsed_summary.get('income_summary', {})
-            
+
             # Build income information
             content_parts = []
-            
+
             # Add summary
             summary = income_summary.get('summary', '')
             if summary and summary != "No specific information provided":
-                content_parts.append(f"<b>Overview:</b> {summary}")
-            
+                cleaned_summary = self._clean_text_encoding(summary)
+                content_parts.append(f"<b>Overview:</b> {cleaned_summary}")
+
             # Add details as bullet points
             details = income_summary.get('details', [])
             if details and details != ["No specific information provided"]:
                 content_parts.append("<b>Details:</b>")
                 for detail in details:
-                    formatted_detail = self._format_currency_text(detail)
+                    cleaned_detail = self._clean_text_encoding(detail)
+                    formatted_detail = self._format_currency_text(cleaned_detail)
                     content_parts.append(formatted_detail)
-            
+
             # Add total monthly income
             total_income = income_summary.get('total_monthly_income', '')
             if total_income and total_income != "No specific information provided":
-                formatted_total = self._format_currency_text(total_income)
+                cleaned_total = self._clean_text_encoding(total_income)
+                formatted_total = self._format_currency_text(cleaned_total)
                 content_parts.append(f"<b>Total Monthly Income:</b> {formatted_total}")
-            
+
             # Add seasonal variations
             seasonal = income_summary.get('seasonal_variations', '')
             if seasonal and seasonal != "No specific information provided":
-                content_parts.append(f"<b>Seasonal Variations:</b> {seasonal}")
-            
+                cleaned_seasonal = self._clean_text_encoding(seasonal)
+                content_parts.append(f"<b>Seasonal Variations:</b> {cleaned_seasonal}")
+
             if content_parts:
                 return "<br/><br/>".join(content_parts)
             else:
                 return "Income information not clearly specified in the conversation."
-                
+
         except Exception as e:
             logger.error(f"Error extracting income info from JSON: {e}")
             return "Income information could not be extracted."
@@ -495,46 +538,53 @@ class PDFService:
         """Extract expense information from JSON data"""
         try:
             expense_summary = parsed_summary.get('expense_summary', {})
-            
+
             # Build expense information
             content_parts = []
-            
+
             # Add summary
             summary = expense_summary.get('summary', '')
             if summary and summary != "No specific information provided":
-                content_parts.append(f"<b>Overview:</b> {summary}")
-            
+                cleaned_summary = self._clean_text_encoding(summary)
+                content_parts.append(f"<b>Overview:</b> {cleaned_summary}")
+
             # Add business expenses
             business_expenses = expense_summary.get('business_expenses', [])
             if business_expenses and business_expenses != ["No specific information provided"]:
                 content_parts.append("<b>Business Expenses:</b>")
                 for expense in business_expenses:
-                    formatted_expense = self._format_currency_text(expense)
+                    cleaned_expense = self._clean_text_encoding(expense)
+                    formatted_expense = self._format_currency_text(cleaned_expense)
                     content_parts.append(formatted_expense)
-            
+
             # Add personal expenses
             personal_expenses = expense_summary.get('personal_expenses', [])
-            if (personal_expenses and 
+            if (personal_expenses and
                 personal_expenses != ["No specific information provided"] and
                 personal_expenses != ["No specific personal expense information provided"] and
-                not (len(personal_expenses) == 1 and 
+                not (len(personal_expenses) == 1 and
                      personal_expenses[0] in ["No specific information provided", "No specific personal expense information provided"])):
                 content_parts.append("<b>Personal Expenses:</b>")
                 for expense in personal_expenses:
-                    formatted_expense = self._format_currency_text(expense)
+                    cleaned_expense = self._clean_text_encoding(expense)
+                    formatted_expense = self._format_currency_text(cleaned_expense)
                     content_parts.append(formatted_expense)
-            
+            else:
+                # Handle the case where personal expenses are not properly specified
+                content_parts.append("<b>Personal Expenses:</b><br/>No specific personal expense information provided")
+
             # Add total monthly expenses
             total_expenses = expense_summary.get('total_monthly_expenses', '')
             if total_expenses and total_expenses != "No specific information provided":
-                formatted_total = self._format_currency_text(total_expenses)
+                cleaned_total = self._clean_text_encoding(total_expenses)
+                formatted_total = self._format_currency_text(cleaned_total)
                 content_parts.append(f"<b>Total Monthly Expenses:</b> {formatted_total}")
-            
+
             if content_parts:
                 return "<br/><br/>".join(content_parts)
             else:
                 return "Expense information not clearly specified in the conversation."
-                
+
         except Exception as e:
             logger.error(f"Error extracting expense info from JSON: {e}")
             return "Expense information could not be extracted."
