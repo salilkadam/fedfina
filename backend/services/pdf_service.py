@@ -159,6 +159,7 @@ class PDFService:
         if not text:
             return text
 
+        original_text = text
         # Clean text encoding first
         text = self._clean_text_encoding(text)
 
@@ -174,6 +175,8 @@ class PDFService:
         # Clean up formatting
         text = text.replace('Rs.  ', 'Rs. ')  # Remove double spaces
         text = text.replace('₹  ', '₹ ')  # Remove double spaces after Rupee
+
+        logger.info(f"Currency formatting: '{original_text}' -> '{text}' (Unicode fonts: {self.use_unicode_fonts})")
         return text
 
     async def generate_conversation_report(
@@ -899,6 +902,10 @@ class PDFService:
             formatted_total_income = self._format_currency_text(total_income) if total_income != "Not specified" else "Not specified"
             formatted_requested_amount = self._format_currency_text(requested_amount) if requested_amount != "Not specified" else "Not specified"
             formatted_repayment_plan = self._format_currency_text(repayment_plan) if repayment_plan != "Not specified" else "Not specified"
+
+            # Debug logging for currency values
+            logger.info(f"Table currency values - Raw: total_income='{total_income}', requested_amount='{requested_amount}', repayment_plan='{repayment_plan}'")
+            logger.info(f"Table currency values - Formatted: total_income='{formatted_total_income}', requested_amount='{formatted_requested_amount}', repayment_plan='{formatted_repayment_plan}'")
 
             # Build table data
             table_data = [
