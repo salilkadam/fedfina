@@ -50,15 +50,12 @@ class Settings(BaseSettings):
     minio_secure: bool = Field(default=False, env="MINIO_SECURE")
     minio_region: str = Field(default="us-east-1", env="MINIO_REGION")
     
-    # Email Configuration
-    smtp_host: str = Field(default="smtp.gmail.com", env="SMTP_HOST")
-    smtp_port: int = Field(default=587, env="SMTP_PORT")
-    smtp_username: str = Field(..., env="SMTP_USERNAME")
-    smtp_password: str = Field(..., env="SMTP_PASSWORD")
-    smtp_from_email: str = Field(..., env="SMTP_FROM_EMAIL")
+    # Email Configuration (Postfix SMTP Relay)
+    # Note: Postfix relay uses IP-based authentication, no username/password required
+    smtp_from_email: str = Field(default="info@bionicaisolutions.com", env="SMTP_FROM_EMAIL")
     smtp_from_name: str = Field(default="Postprocess API", env="SMTP_FROM_NAME")
-    smtp_use_tls: bool = Field(default=True, env="SMTP_USE_TLS")
     smtp_use_cc: Optional[str] = Field(default=None, env="SMTP_USE_CC")
+    smtp_rate_limit_per_minute: int = Field(default=30, env="SMTP_RATE_LIMIT_PER_MINUTE")
     
     # API Security
     api_secret_key: str = Field(..., env="API_SECRET_KEY")

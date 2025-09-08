@@ -57,7 +57,7 @@ class ConversationProcessor:
             "conversation_id": conversation_id,
             "email_id": email_id,
             "account_id": account_id,
-            "send_email": False  # Disable email sending for testing
+            "send_email": True  # Enable email sending with new Postfix relay
         }
 
         print(f"🚀 Processing conversation: {conversation_id}")

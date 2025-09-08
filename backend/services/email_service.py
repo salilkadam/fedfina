@@ -1,31 +1,113 @@
 """
-Email Service for sending PDF reports
+Email Service for sending PDF reports using Postfix SMTP relay
 """
 import logging
-import aiosmtplib
+import smtplib
+import ssl
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from functools import wraps
 from config import Settings
 
 logger = logging.getLogger(__name__)
 
 
 class EmailService:
-    """Service for sending emails with download links"""
+    """Service for sending emails with download links using Postfix SMTP relay"""
 
     def __init__(self, settings: Settings):
+        # Use Postfix SMTP relay configuration
+        self.smtp_host = "postfix-relay.email-server-prod.svc.cluster.local"
+        self.smtp_port = 25
+        self.from_email = "info@bionicaisolutions.com"
         self.settings = settings
-        self.smtp_host = settings.smtp_host
-        self.smtp_port = settings.smtp_port
-        self.smtp_username = settings.smtp_username
-        self.smtp_password = settings.smtp_password
-        self.smtp_use_tls = settings.smtp_use_tls
-        self.from_email = settings.smtp_from_email
-        self.cc_email = settings.smtp_use_cc
+
+        # Rate limiting configuration from settings
+        self.rate_limit_calls_per_minute = getattr(settings, 'smtp_rate_limit_per_minute', 30)
+        self.rate_limit_last_called = [0.0]
+
+        logger.info(f"Email service initialized with Postfix relay: {self.smtp_host}:{self.smtp_port}")
+
+    def rate_limit(self, func):
+        """Decorator to implement rate limiting"""
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            elapsed = time.time() - self.rate_limit_last_called[0]
+            left_to_wait = 60.0 / self.rate_limit_calls_per_minute - elapsed
+            if left_to_wait > 0:
+                logger.info(f"Rate limiting: waiting {left_to_wait:.2f} seconds")
+                time.sleep(left_to_wait)
+            ret = func(*args, **kwargs)
+            self.rate_limit_last_called[0] = time.time()
+            return ret
+        return wrapper
+
+    def validate_email_address(self, email: str) -> bool:
+        """Validate email address format"""
+        try:
+            import re
+            # Basic email validation regex
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if re.match(email_pattern, email):
+                # Additional validation for common issues
+                if '..' in email or email.startswith('.') or email.endswith('.'):
+                    return False
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Email validation error: {e}")
+            return False
+
+    def send_email_with_retry(self, msg: MIMEMultipart, max_retries: int = 3) -> Dict[str, Any]:
+        """Send email with retry mechanism and exponential backoff"""
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempting to send email (attempt {attempt + 1}/{max_retries})")
+
+                # Connect to Postfix SMTP relay (no authentication required)
+                server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=30.0)
+                server.send_message(msg)
+                server.quit()
+
+                logger.info("Email sent successfully")
+                return {
+                    "status": "success",
+                    "message": "Email sent successfully",
+                    "attempts": attempt + 1
+                }
+
+            except smtplib.SMTPException as e:
+                logger.warning(f"SMTP error on attempt {attempt + 1}: {e}")
+                if attempt == max_retries - 1:
+                    logger.error(f"Failed to send email after {max_retries} attempts")
+                    return {
+                        "status": "error",
+                        "error": f"SMTP error: {str(e)}",
+                        "attempts": attempt + 1
+                    }
+                # Exponential backoff
+                wait_time = 2 ** attempt
+                logger.info(f"Waiting {wait_time} seconds before retry...")
+                time.sleep(wait_time)
+
+            except Exception as e:
+                logger.error(f"Unexpected error sending email: {e}")
+                return {
+                    "status": "error",
+                    "error": f"Unexpected error: {str(e)}",
+                    "attempts": attempt + 1
+                }
+
+        return {
+            "status": "error",
+            "error": "Maximum retries exceeded",
+            "attempts": max_retries
+        }
 
     async def send_conversation_report(
         self,
@@ -37,14 +119,14 @@ class EmailService:
     ) -> Dict[str, Any]:
         """
         Send a conversation report via email with download links
-        
+
         Args:
             to_email: Recipient email address
             conversation_id: The conversation ID
             account_id: The account ID for file organization
             files: Dictionary containing file URLs
             metadata: Additional metadata about the conversation
-            
+
         Returns:
             Dict containing the email sending result
         """
@@ -59,70 +141,54 @@ class EmailService:
                     "conversation_id": conversation_id,
                     "account_id": account_id
                 }
-            
+
+            # Validate email address
+            if not self.validate_email_address(to_email):
+                logger.error(f"Invalid email address: {to_email}")
+                return {
+                    "status": "error",
+                    "error": f"Invalid email address: {to_email}",
+                    "conversation_id": conversation_id
+                }
+
+            logger.info(f"Sending conversation report to {to_email} for conversation {conversation_id}")
+
             # Create email message
             msg = MIMEMultipart()
             msg['From'] = self.from_email
             msg['To'] = to_email
             msg['Subject'] = f"Conversation Analysis Report - {account_id or 'Customer'}"
-            
-            # Add CC if configured
-            if self.cc_email:
-                msg['Cc'] = self.cc_email
-                logger.info(f"Adding CC to: {self.cc_email}")
-            
+
             # Create email body with download links
             body = self._create_email_body_with_links(conversation_id, account_id, files, metadata)
             msg.attach(MIMEText(body, 'html'))
-            
-            # Send email using synchronous SMTP in executor
-            import smtplib
-            import ssl
-            import asyncio
-            
-            def send_email_sync():
-                """Synchronous email sending function"""
-                if self.smtp_port == 465:
-                    # SSL connection for port 465
-                    context = ssl.create_default_context()
-                    smtp = smtplib.SMTP_SSL(
-                        self.smtp_host,
-                        self.smtp_port,
-                        context=context,
-                        timeout=30.0
-                    )
-                    smtp.login(self.smtp_username, self.smtp_password)
-                    smtp.send_message(msg)
-                    smtp.quit()
-                else:
-                    # STARTTLS connection for port 587
-                    smtp = smtplib.SMTP(
-                        self.smtp_host,
-                        self.smtp_port,
-                        timeout=30.0
-                    )
-                    smtp.ehlo()
-                    smtp.starttls()
-                    smtp.login(self.smtp_username, self.smtp_password)
-                    smtp.send_message(msg)
-                    smtp.quit()
-            
-            # Run synchronous SMTP in thread pool
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, send_email_sync)
-            
-            return {
-                "status": "success",
-                "message": f"Email sent successfully to {to_email}",
-                "conversation_id": conversation_id,
-                "timestamp": datetime.now().isoformat()
-            }
-            
+
+            # Apply rate limiting and send email
+            rate_limited_send = self.rate_limit(self.send_email_with_retry)
+            result = rate_limited_send(msg)
+
+            if result["status"] == "success":
+                return {
+                    "status": "success",
+                    "message": f"Email sent successfully to {to_email}",
+                    "conversation_id": conversation_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "attempts": result.get("attempts", 1)
+                }
+            else:
+                return {
+                    "status": "error",
+                    "error": result["error"],
+                    "conversation_id": conversation_id,
+                    "attempts": result.get("attempts", 0)
+                }
+
         except Exception as e:
             logger.error(f"Error sending email: {e}")
             return {
                 "status": "error",
-                "error": f"Email sending failed: {str(e)}"
+                "error": f"Email sending failed: {str(e)}",
+                "conversation_id": conversation_id
             }
 
     def _create_email_body_with_links(
@@ -387,52 +453,70 @@ class EmailService:
         self,
         to_email: str,
         conversation_id: str,
+        account_id: str,
         pdf_bytes: bytes,
         summary: str
     ) -> Dict[str, Any]:
         """
-        Send a simple conversation report via email
-        
+        Send a simple conversation report via email with PDF attachment
+
         Args:
             to_email: Recipient email address
             conversation_id: The conversation ID
+            account_id: The account ID
             pdf_bytes: PDF file bytes
             summary: Brief summary of the conversation
-            
+
         Returns:
             Dict containing the email sending result
         """
         try:
+            # Check if email sending is disabled for testing
+            if self.settings.disable_email_sending:
+                logger.info(f"Email sending disabled for testing. Would send to: {to_email}")
+                return {
+                    "status": "success",
+                    "message": "Email sending disabled for testing",
+                    "to_email": to_email,
+                    "conversation_id": conversation_id
+                }
+
+            # Validate email address
+            if not self.validate_email_address(to_email):
+                logger.error(f"Invalid email address: {to_email}")
+                return {
+                    "status": "error",
+                    "error": f"Invalid email address: {to_email}",
+                    "conversation_id": conversation_id
+                }
+
+            logger.info(f"Sending simple report to {to_email} for conversation {conversation_id}")
+
             # Create email message
             msg = MIMEMultipart()
             msg['From'] = self.from_email
             msg['To'] = to_email
             msg['Subject'] = f"Loan Application Analysis Report - {account_id or 'Customer'}"
-            
-            # Add BCC if configured
-            if self.bcc_email:
-                msg['Bcc'] = self.bcc_email
-                logger.info(f"Adding BCC to: {self.bcc_email}")
-            
+
             # Create simple email body
             body = f"""
             <html>
             <body>
                 <h2>Conversation Report</h2>
                 <p>Your conversation analysis report is ready.</p>
-                
+
                 <h3>Summary</h3>
                 <p>{summary}</p>
-                
+
                 <p>The attached PDF contains the complete conversation transcript and analysis.</p>
-                
+
                 <p>Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
             </body>
             </html>
             """
-            
+
             msg.attach(MIMEText(body, 'html'))
-            
+
             # Attach PDF
             pdf_attachment = MIMEBase('application', 'pdf')
             pdf_attachment.set_payload(pdf_bytes)
@@ -442,148 +526,124 @@ class EmailService:
                 f'attachment; filename=conversation_report_{conversation_id}.pdf'
             )
             msg.attach(pdf_attachment)
-            
-            # Send email
-            # Configure SMTP connection based on port
-            if self.smtp_port == 465:
-                # SSL connection for port 465
-                async with aiosmtplib.SMTP(
-                    hostname=self.smtp_host,
-                    port=self.smtp_port,
-                    use_tls=True,  # Use SSL from the start
-                    timeout=30.0
-                ) as smtp:
-                    await smtp.login(self.smtp_username, self.smtp_password)
-                    await smtp.send_message(msg)
+
+            # Apply rate limiting and send email
+            rate_limited_send = self.rate_limit(self.send_email_with_retry)
+            result = rate_limited_send(msg)
+
+            if result["status"] == "success":
+                return {
+                    "status": "success",
+                    "message": f"Email sent successfully to {to_email}",
+                    "conversation_id": conversation_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "attempts": result.get("attempts", 1)
+                }
             else:
-                # STARTTLS connection for port 587
-                async with aiosmtplib.SMTP(
-                    hostname=self.smtp_host,
-                    port=self.smtp_port,
-                    timeout=30.0
-                ) as smtp:
-                    await smtp.connect()
-                    await smtp.starttls()
-                    await smtp.login(self.smtp_username, self.smtp_password)
-                    await smtp.send_message(msg)
-            
-            return {
-                "status": "success",
-                "message": f"Email sent successfully to {to_email}",
-                "conversation_id": conversation_id,
-                "timestamp": datetime.now().isoformat()
-            }
-            
+                return {
+                    "status": "error",
+                    "error": result["error"],
+                    "conversation_id": conversation_id,
+                    "attempts": result.get("attempts", 0)
+                }
+
         except Exception as e:
             logger.error(f"Error sending simple email: {e}")
             return {
                 "status": "error",
-                "error": f"Email sending failed: {str(e)}"
+                "error": f"Email sending failed: {str(e)}",
+                "conversation_id": conversation_id
             }
 
-    async def test_email_connection(self) -> Dict[str, Any]:
+    def test_email_connection(self) -> Dict[str, Any]:
         """
-        Test email service connection
-        
+        Test email service connection to Postfix relay
+
         Returns:
             Dict containing the test result
         """
         try:
-            # Configure SMTP connection based on port
-            if self.smtp_port == 465:
-                # SSL connection for port 465
-                async with aiosmtplib.SMTP(
-                    hostname=self.smtp_host,
-                    port=self.smtp_port,
-                    use_tls=True,  # Use SSL from the start
-                    timeout=10.0
-                ) as smtp:
-                    await smtp.login(self.smtp_username, self.smtp_password)
-            else:
-                # STARTTLS connection for port 587
-                async with aiosmtplib.SMTP(
-                    hostname=self.smtp_host,
-                    port=self.smtp_port,
-                    timeout=10.0
-                ) as smtp:
-                    await smtp.connect()
-                    await smtp.starttls()
-                    await smtp.login(self.smtp_username, self.smtp_password)
-            
+            logger.info("Testing connection to Postfix SMTP relay...")
+
+            # Test connection to Postfix SMTP relay (no authentication required)
+            server = smtplib.SMTP(self.smtp_host, self.smtp_port, timeout=10.0)
+            server.quit()
+
+            logger.info("Email service connection test successful")
             return {
                 "status": "success",
-                "message": "Email service connection successful"
+                "message": "Email service connection successful",
+                "relay_host": self.smtp_host,
+                "relay_port": self.smtp_port
             }
-            
+
+        except smtplib.SMTPException as e:
+            logger.error(f"SMTP connection test failed: {e}")
+            return {
+                "status": "error",
+                "error": f"SMTP connection failed: {str(e)}",
+                "relay_host": self.smtp_host,
+                "relay_port": self.smtp_port
+            }
         except Exception as e:
             logger.error(f"Email connection test failed: {e}")
             return {
                 "status": "error",
-                "error": f"Email connection failed: {str(e)}"
+                "error": f"Email connection failed: {str(e)}",
+                "relay_host": self.smtp_host,
+                "relay_port": self.smtp_port
             }
 
-    async def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> Dict[str, Any]:
         """
         Check email service health
-        
+
         Returns:
             Health status dictionary
         """
         try:
             # Test SMTP connection
-            connection_result = await self.test_email_connection()
-            
+            connection_result = self.test_email_connection()
+
             if connection_result.get("status") == "success":
                 return {
                     "status": "healthy",
-                    "message": "Email service working correctly"
+                    "message": "Email service working correctly",
+                    "relay_host": self.smtp_host,
+                    "relay_port": self.smtp_port,
+                    "rate_limit": f"{self.rate_limit_calls_per_minute} calls/minute",
+                    "timestamp": datetime.now().isoformat()
                 }
             else:
                 return {
                     "status": "unhealthy",
-                    "message": f"Email service error: {connection_result.get('error')}"
+                    "message": f"Email service error: {connection_result.get('error')}",
+                    "relay_host": self.smtp_host,
+                    "relay_port": self.smtp_port,
+                    "timestamp": datetime.now().isoformat()
                 }
-                
+
         except Exception as e:
             logger.error(f"Email service health check failed: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"Email service error: {str(e)}"
+                "message": f"Email service error: {str(e)}",
+                "timestamp": datetime.now().isoformat()
             }
 
-    async def validate_email_address(self, email: str) -> Dict[str, Any]:
+    def get_metrics(self) -> Dict[str, Any]:
         """
-        Validate email address format
-        
-        Args:
-            email: Email address to validate
-            
+        Get email service metrics
+
         Returns:
-            Dict containing validation result
+            Dict containing service metrics
         """
-        try:
-            import re
-            
-            # Basic email validation regex
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-            
-            if re.match(email_pattern, email):
-                return {
-                    "status": "success",
-                    "valid": True,
-                    "message": "Email address format is valid"
-                }
-            else:
-                return {
-                    "status": "error",
-                    "valid": False,
-                    "message": "Email address format is invalid"
-                }
-                
-        except Exception as e:
-            logger.error(f"Email validation failed: {e}")
-            return {
-                "status": "error",
-                "valid": False,
-                "error": f"Email validation failed: {str(e)}"
-            }
+        return {
+            "service": "Postfix SMTP Relay",
+            "relay_host": self.smtp_host,
+            "relay_port": self.smtp_port,
+            "from_email": self.from_email,
+            "rate_limit_calls_per_minute": self.rate_limit_calls_per_minute,
+            "last_rate_limit_check": datetime.fromtimestamp(self.rate_limit_last_called[0]).isoformat() if self.rate_limit_last_called[0] > 0 else None,
+            "timestamp": datetime.now().isoformat()
+        }
