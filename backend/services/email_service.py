@@ -22,7 +22,7 @@ class EmailService:
 
     def __init__(self, settings: Settings):
         # Use Postfix SMTP relay configuration
-        self.smtp_host = "postfix-relay.email-server-prod.svc.cluster.local"
+        self.smtp_host = "postfix-relay.mail-service-prod.svc.cluster.local"
         self.smtp_port = 25
         self.from_email = "info@bionicaisolutions.com"
         self.settings = settings
