@@ -1144,9 +1144,17 @@ async def test_email(request: TestEmailRequest):
         settings = Settings()
         email_service = EmailService(settings)
         
-        # Create a simple test email
+        # Test email service connection first
+        connection_result = email_service.test_email_connection()
+        if connection_result.get("status") != "success":
+            return {
+                "status": "error",
+                "error": f"Email service connection failed: {connection_result.get('error')}"
+            }
+        
+        # Create a simple test email using the EmailService
         msg = MIMEMultipart()
-        msg['From'] = settings.smtp_from_email
+        msg['From'] = email_service.from_email
         msg['To'] = request.to_email
         msg['Subject'] = request.subject
         
@@ -1162,53 +1170,20 @@ async def test_email(request: TestEmailRequest):
             <p>{request.message}</p>
             <p><strong>Test Details:</strong></p>
             <ul>
-                <li>SMTP Host: {settings.smtp_host}</li>
-                <li>SMTP Port: {settings.smtp_port}</li>
-                <li>From Email: {settings.smtp_from_email}</li>
+                <li>SMTP Host: {email_service.smtp_host}</li>
+                <li>SMTP Port: {email_service.smtp_port}</li>
+                <li>From Email: {email_service.from_email}</li>
                 <li>Test Time: {datetime.now().isoformat()}</li>
             </ul>
-            <p>If you received this email, the SMTP configuration is working correctly!</p>
+            <p>If you received this email, the local Postfix SMTP relay is working correctly!</p>
         </body>
         </html>
         """
         
         msg.attach(MIMEText(body, 'html'))
         
-        # Send email using synchronous SMTP in executor
-        import smtplib
-        import ssl
-        import asyncio
-        
-        def send_test_email_sync():
-            """Synchronous test email sending function"""
-            if settings.smtp_port == 465:
-                # SSL connection for port 465
-                context = ssl.create_default_context()
-                smtp = smtplib.SMTP_SSL(
-                    settings.smtp_host,
-                    settings.smtp_port,
-                    context=context,
-                    timeout=30.0
-                )
-                smtp.login(settings.smtp_username, settings.smtp_password)
-                smtp.send_message(msg)
-                smtp.quit()
-            else:
-                # STARTTLS connection for port 587
-                smtp = smtplib.SMTP(
-                    settings.smtp_host,
-                    settings.smtp_port,
-                    timeout=30.0
-                )
-                smtp.ehlo()
-                smtp.starttls()
-                smtp.login(settings.smtp_username, settings.smtp_password)
-                smtp.send_message(msg)
-                smtp.quit()
-        
-        # Run synchronous SMTP in thread pool
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, send_test_email_sync)
+        # Send email using the EmailService
+        result = email_service.send_email_with_retry(msg)
         
         return {
             "status": "success",

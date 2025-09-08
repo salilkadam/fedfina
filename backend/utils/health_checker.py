@@ -110,50 +110,27 @@ class HealthChecker:
             }
 
     async def check_email_service(self) -> Dict[str, Any]:
-        """Check email service health (SMTP connectivity only - no authentication)"""
+        """Check email service health using local Postfix SMTP relay"""
         try:
-            import smtplib
-            import ssl
-            import asyncio
+            from services.email_service import EmailService
+            email_service = EmailService(self.settings)
+            email_result = email_service.test_email_connection()
             
-            def test_smtp_connectivity():
-                """Test SMTP server connectivity without authentication"""
-                if self.settings.smtp_port == 465:
-                    # SSL connection for port 465
-                    context = ssl.create_default_context()
-                    smtp = smtplib.SMTP_SSL(
-                        self.settings.smtp_host, 
-                        self.settings.smtp_port, 
-                        context=context,
-                        timeout=10.0
-                    )
-                    smtp.ehlo()
-                    smtp.quit()
-                else:
-                    # STARTTLS connection for port 587
-                    smtp = smtplib.SMTP(
-                        self.settings.smtp_host, 
-                        self.settings.smtp_port,
-                        timeout=10.0
-                    )
-                    smtp.ehlo()
-                    smtp.starttls()
-                    smtp.ehlo()  # Second EHLO after STARTTLS
-                    smtp.quit()
-            
-            # Run synchronous SMTP connectivity test in thread pool
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(None, test_smtp_connectivity)
-            
-            return {
-                "status": "healthy",
-                "message": "SMTP server reachable"
-            }
+            if email_result.get("status") == "success":
+                return {
+                    "status": "healthy",
+                    "message": "Local Postfix SMTP relay is working"
+                }
+            else:
+                return {
+                    "status": "unhealthy",
+                    "message": f"Email service error: {email_result.get('error')}"
+                }
         except Exception as e:
             logger.error(f"Email service health check failed: {e}")
             return {
                 "status": "unhealthy",
-                "message": f"SMTP server unreachable: {str(e)}"
+                "message": f"Email service test failed: {str(e)}"
             }
     
     async def get_processing_metrics(self) -> Dict[str, Any]:
