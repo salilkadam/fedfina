@@ -13,10 +13,7 @@ spec:
   source:
     repoURL: 'https://github.com/salilkadam/fedfina.git'
     targetRevision: main
-    path: deploy
-    directory:
-      include: "deployment-clean.yaml,secrets-updated.yaml"
-      exclude: "test-*.yaml,kustomization.yaml,patches/*,deployment-v2.yaml"
+    path: deploy/argocd
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: fedfina

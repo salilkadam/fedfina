@@ -1,0 +1,160 @@
+name: Simple CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  BACKEND_IMAGE: docker4zerocool/fedfina-backend
+  FRONTEND_IMAGE: docker4zerocool/fedfina-frontend
+  ARGOCD_APP_NAME: fedfina-app
+  ARGOCD_NAMESPACE: argocd
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Extract metadata for backend
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Extract metadata for frontend
+      id: meta-frontend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Build and push backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        platforms: linux/amd64
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build and push frontend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        platforms: linux/amd64
+        push: true
+        tags: ${{ steps.meta-frontend.outputs.tags }}
+        labels: ${{ steps.meta-frontend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Output image tags
+      run: |
+        echo "Backend tags: ${{ steps.meta-backend.outputs.tags }}"
+        echo "Frontend tags: ${{ steps.meta-frontend.outputs.tags }}"
+
+  update-deployment:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get latest image tags
+      id: get-tags
+      run: |
+        # Get the latest commit SHA for tagging
+        COMMIT_SHA=$(git rev-parse --short HEAD)
+        echo "backend_tag=main-${COMMIT_SHA}" >> $GITHUB_OUTPUT
+        echo "frontend_tag=main-${COMMIT_SHA}" >> $GITHUB_OUTPUT
+        echo "Backend tag: main-${COMMIT_SHA}"
+        echo "Frontend tag: main-${COMMIT_SHA}"
+
+    - name: Update deployment manifests
+      run: |
+        # Update deployment manifests with new image tags
+        sed -i "s|image: docker4zerocool/fedfina-backend:latest|image: docker4zerocool/fedfina-backend:${{ steps.get-tags.outputs.backend_tag }}|g" deploy/argocd/deployment-clean.yaml
+        sed -i "s|image: docker4zerocool/fedfina-frontend:latest|image: docker4zerocool/fedfina-frontend:${{ steps.get-tags.outputs.frontend_tag }}|g" deploy/argocd/deployment-clean.yaml
+        
+        echo "Updated deployment manifests with new image tags"
+
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add deploy/argocd/deployment-clean.yaml
+        git commit -m "Update image tags to ${{ steps.get-tags.outputs.backend_tag }} and ${{ steps.get-tags.outputs.frontend_tag }}" || exit 0
+        git push
+
+  sync-argocd:
+    needs: update-deployment
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Install ArgoCD CLI
+      run: |
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+        rm argocd-linux-amd64
+
+    - name: Login to ArgoCD
+      run: |
+        argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+
+    - name: Sync ArgoCD Application
+      run: |
+        echo "Syncing ArgoCD application: ${{ env.ARGOCD_APP_NAME }}"
+        argocd app sync ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }}
+
+    - name: Wait for deployment to be healthy
+      run: |
+        echo "Waiting for deployment to be healthy..."
+        argocd app wait ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }} --health --timeout 300
+
+    - name: Get application status
+      run: |
+        echo "Final application status:"
+        argocd app get ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }}
+
+  notify:
+    needs: [sync-argocd]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Deployment Status
+      run: |
+        if [ "${{ needs.sync-argocd.result }}" == "success" ]; then
+          echo "✅ Deployment successful!"
+          echo "🚀 FedFina application deployed successfully"
+          echo "🌐 Application URL: https://fedfina.bionicaisolutions.com"
+        else
+          echo "❌ Deployment failed!"
+          echo "🔍 Check the logs above for details"
+        fi
