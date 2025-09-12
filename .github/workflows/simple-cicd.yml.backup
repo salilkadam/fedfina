@@ -1,4 +1,4 @@
-name: Simple CI/CD Pipeline (Fixed)
+name: Simple CI/CD Pipeline
 
 on:
   push:
@@ -79,7 +79,6 @@ jobs:
   update-deployment:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: success()
     
     steps:
     - name: Checkout code
@@ -104,25 +103,18 @@ jobs:
         sed -i "s|image: docker4zerocool/fedfina-frontend:latest|image: docker4zerocool/fedfina-frontend:${{ steps.get-tags.outputs.frontend_tag }}|g" deploy/argocd/deployment-clean.yaml
         
         echo "Updated deployment manifests with new image tags"
-        echo "Backend: docker4zerocool/fedfina-backend:${{ steps.get-tags.outputs.backend_tag }}"
-        echo "Frontend: docker4zerocool/fedfina-frontend:${{ steps.get-tags.outputs.frontend_tag }}"
 
     - name: Commit and push changes
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add deploy/argocd/deployment-clean.yaml
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Update image tags to ${{ steps.get-tags.outputs.backend_tag }} and ${{ steps.get-tags.outputs.frontend_tag }}"
-          git push
-        fi
+        git commit -m "Update image tags to ${{ steps.get-tags.outputs.backend_tag }} and ${{ steps.get-tags.outputs.frontend_tag }}" || exit 0
+        git push
 
   sync-argocd:
     needs: update-deployment
     runs-on: ubuntu-latest
-    if: success()
     
     steps:
     - name: Install ArgoCD CLI
@@ -133,7 +125,6 @@ jobs:
 
     - name: Login to ArgoCD
       run: |
-        echo "Logging into ArgoCD at: ${{ secrets.ARGOCD_SERVER }}"
         argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
 
     - name: Sync ArgoCD Application
@@ -152,18 +143,13 @@ jobs:
         argocd app get ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }}
 
   notify:
-    needs: [build-and-push, update-deployment, sync-argocd]
+    needs: [sync-argocd]
     runs-on: ubuntu-latest
     if: always()
     
     steps:
     - name: Deployment Status
       run: |
-        echo "=== DEPLOYMENT STATUS ==="
-        echo "Build and Push: ${{ needs.build-and-push.result }}"
-        echo "Update Deployment: ${{ needs.update-deployment.result }}"
-        echo "Sync ArgoCD: ${{ needs.sync-argocd.result }}"
-        
         if [ "${{ needs.sync-argocd.result }}" == "success" ]; then
           echo "✅ Deployment successful!"
           echo "🚀 FedFina application deployed successfully"
@@ -171,9 +157,4 @@ jobs:
         else
           echo "❌ Deployment failed!"
           echo "🔍 Check the logs above for details"
-          echo ""
-          echo "Common issues:"
-          echo "1. Check Docker Hub credentials (DOCKER_USERNAME, DOCKER_PASSWORD)"
-          echo "2. Check ArgoCD credentials (ARGOCD_SERVER, ARGOCD_USERNAME, ARGOCD_PASSWORD)"
-          echo "3. Check if ArgoCD server is accessible from GitHub Actions"
         fi
