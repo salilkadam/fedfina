@@ -151,17 +151,17 @@ jobs:
     - name: Sync ArgoCD Application
       run: |
         echo "Syncing ArgoCD application: ${{ env.ARGOCD_APP_NAME }}"
-        argocd app sync ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }}
+        argocd app sync ${{ env.ARGOCD_APP_NAME }}
 
     - name: Wait for deployment to be healthy
       run: |
         echo "Waiting for deployment to be healthy..."
-        argocd app wait ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }} --health --timeout 300
+        argocd app wait ${{ env.ARGOCD_APP_NAME }} --health --timeout 300
 
     - name: Get application status
       run: |
         echo "Final application status:"
-        argocd app get ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }}
+        argocd app get ${{ env.ARGOCD_APP_NAME }}
 
   notify:
     needs: [build-and-push, update-deployment, sync-argocd]
