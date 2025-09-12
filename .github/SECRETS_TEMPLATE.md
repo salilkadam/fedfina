@@ -5,8 +5,8 @@ This document outlines the required GitHub secrets for the CI/CD pipeline to wor
 ## Required Secrets
 
 ### Docker Hub Credentials
-- `DOCKER_USERNAME`: Your Docker Hub username
-- `DOCKER_PASSWORD`: Your Docker Hub access token or password
+- `dockerhub_username`: Your Docker Hub username (e.g., `docker4zerocool`)
+- `dockerhub_token`: Your Docker Hub Personal Access Token (PAT)
 
 ### ArgoCD Credentials
 - `ARGOCD_SERVER`: ArgoCD server URL (e.g., `https://argocd.bionicaisolutions.com`)

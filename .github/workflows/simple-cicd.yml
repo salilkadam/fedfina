@@ -26,8 +26,8 @@ jobs:
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+        username: ${{ secrets.dockerhub_username }}
+        password: ${{ secrets.dockerhub_token }}
 
     - name: Extract metadata for backend
       id: meta-backend
@@ -173,7 +173,7 @@ jobs:
           echo "🔍 Check the logs above for details"
           echo ""
           echo "Common issues:"
-          echo "1. Check Docker Hub credentials (DOCKER_USERNAME, DOCKER_PASSWORD)"
+          echo "1. Check Docker Hub credentials (dockerhub_username, dockerhub_token)"
           echo "2. Check ArgoCD credentials (ARGOCD_SERVER, ARGOCD_USERNAME, ARGOCD_PASSWORD)"
           echo "3. Check if ArgoCD server is accessible from GitHub Actions"
         fi
