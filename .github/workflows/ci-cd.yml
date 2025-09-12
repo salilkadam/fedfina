@@ -1,282 +1,222 @@
-name: CI/CD Pipeline
+name: CI/CD Pipeline for FedFina
 
 on:
   push:
-    branches: [ main, develop, feature-IST ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'staging'
-        type: choice
-        options:
-        - staging
-        - production
-
-# Prevent concurrent runs to avoid race conditions
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   REGISTRY: docker.io
-  BACKEND_IMAGE: docker4zerocool/fedfina-backend
-  FRONTEND_IMAGE: docker4zerocool/fedfina-frontend
-  KUBE_NAMESPACE: fedfina
+  IMAGE_NAME_BACKEND: salilkadam/fedfina-backend
+  IMAGE_NAME_FRONTEND: salilkadam/fedfina-frontend
+  ARGOCD_APP_NAME: fedfina-app
+  ARGOCD_NAMESPACE: argocd
 
 jobs:
   test:
-    name: Test
-    if: false
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        
+
     - name: Install Python dependencies
       run: |
         cd backend
         pip install -r requirements.txt
-        
-    - name: Run backend tests
+
+    - name: Run Python tests
       run: |
         cd backend
-        python -m pytest tests/ -v
+        python -m pytest tests/ -v --cov=. --cov-report=xml
       env:
         ENV: test
-        
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         cache-dependency-path: frontend/package-lock.json
-        
-    - name: Install frontend dependencies
+
+    - name: Install Node.js dependencies
       run: |
         cd frontend
         npm ci
-        
+
     - name: Run frontend tests
       run: |
         cd frontend
-        npm test -- --watchAll=false --coverage
-        
-    - name: Build frontend
-      run: |
-        cd frontend
-        npm run build
+        npm test -- --coverage --watchAll=false
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./backend/coverage.xml,./frontend/coverage/lcov.info
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
 
   build-and-push:
-    name: Build and Push Docker Images
+    needs: [test, security-scan]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    outputs:
-      backend_tag: ${{ steps.verify.outputs.backend_tag }}
-      frontend_tag: ${{ steps.verify.outputs.frontend_tag }}
+    if: github.ref == 'refs/heads/main'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      
+
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
     - name: Extract metadata for backend
       id: meta-backend
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
-          
+
     - name: Extract metadata for frontend
       id: meta-frontend
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
           type=sha,prefix={{branch}}-
           type=raw,value=latest,enable={{is_default_branch}}
-          
+
     - name: Build and push backend image
       uses: docker/build-push-action@v5
       with:
         context: ./backend
+        platforms: linux/amd64,linux/arm64
         push: true
         tags: ${{ steps.meta-backend.outputs.tags }}
         labels: ${{ steps.meta-backend.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
-        
+
     - name: Build and push frontend image
       uses: docker/build-push-action@v5
       with:
         context: ./frontend
+        platforms: linux/amd64,linux/arm64
         push: true
         tags: ${{ steps.meta-frontend.outputs.tags }}
         labels: ${{ steps.meta-frontend.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
 
-    - name: Verify images are pushed
-      id: verify
-      run: |
-        echo "Waiting for images to be available..."
-        echo "Backend tags: ${{ steps.meta-backend.outputs.tags }}"
-        echo "Frontend tags: ${{ steps.meta-frontend.outputs.tags }}"
-        
-        # Function to check if image exists
-        check_image() {
-          local image=$1
-          local max_attempts=10
-          local attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo "Attempt $attempt/$max_attempts: Checking $image"
-            if docker pull $image >/dev/null 2>&1; then
-              echo "✅ Image verified: $image"
-              return 0
-            else
-              echo "⏳ Image not yet available: $image"
-              if [ $attempt -lt $max_attempts ]; then
-                sleep 30
-              fi
-            fi
-            attempt=$((attempt + 1))
-          done
-          
-          echo "❌ Failed to verify image after $max_attempts attempts: $image"
-          return 1
-        }
-        
-        # Get the first tag for each image (should be the branch-sha format)
-        BACKEND_TAG=$(echo "${{ steps.meta-backend.outputs.tags }}" | tr ' ' '\n' | head -1)
-        FRONTEND_TAG=$(echo "${{ steps.meta-frontend.outputs.tags }}" | tr ' ' '\n' | head -1)
-        
-        echo "Backend tag: $BACKEND_TAG"
-        echo "Frontend tag: $FRONTEND_TAG"
-        
-        # Verify backend image
-        check_image "$BACKEND_TAG" || exit 1
-        
-        # Verify frontend image  
-        check_image "$FRONTEND_TAG" || exit 1
-        
-        echo "🎉 All images verified successfully!"
-        
-        # Set outputs for deployment jobs
-        echo "backend_tag=$BACKEND_TAG" >> $GITHUB_OUTPUT
-        echo "frontend_tag=$FRONTEND_TAG" >> $GITHUB_OUTPUT
-
-  deploy-staging:
-    name: Deploy to Staging (GitOps)
+  update-manifests:
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/feature-IST' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
-    environment: staging
+    if: github.ref == 'refs/heads/main'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Update image tags in staging manifests (GitOps)
-      run: |
-        # Get the actual generated tags from the build job
-        BACKEND_TAG="${{ needs.build-and-push.outputs.backend_tag }}"
-        FRONTEND_TAG="${{ needs.build-and-push.outputs.frontend_tag }}"
-        
-        echo "Using backend tag: $BACKEND_TAG"
-        echo "Using frontend tag: $FRONTEND_TAG"
-        
-        # Update manifests with actual tags
-        # Use awk to update specific containers by name
-        awk -v backend_tag="$BACKEND_TAG" -v frontend_tag="$FRONTEND_TAG" '
-        /name: backend/ { in_backend = 1; print; next }
-        /name: frontend/ { in_backend = 0; print; next }
-        /^[[:space:]]*image:/ {
-          if (in_backend) {
-            print "          image: " backend_tag
-          } else {
-            print "          image: " frontend_tag
-          }
-          next
-        }
-        { print }
-        ' deploy/deployment-staging.yaml > deploy/deployment-staging.yaml.tmp && mv deploy/deployment-staging.yaml.tmp deploy/deployment-staging.yaml
-    
-    - name: Commit and push updated staging manifests
-      uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit_message: "GitOps(staging): update image tags to ${{ github.sha }}"
-        branch: ${{ github.ref_name }}
-        file_pattern: 'deploy/deployment-staging.yaml'
-        # Prevent triggering another workflow run
-        skip_ci: true
+        token: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy-production:
-    name: Deploy to Production (GitOps)
-    needs: build-and-push
+    - name: Update deployment manifests with new image tags
+      run: |
+        # Get the latest image tags
+        BACKEND_TAG=$(docker/metadata-action@v5 --images docker.io/salilkadam/fedfina-backend --tags type=sha,prefix=main- | grep -o 'main-[a-f0-9]*' | head -1)
+        FRONTEND_TAG=$(docker/metadata-action@v5 --images docker.io/salilkadam/fedfina-frontend --tags type=sha,prefix=main- | grep -o 'main-[a-f0-9]*' | head -1)
+        
+        # Update deployment manifests
+        sed -i "s|image: fedfina-backend:latest|image: salilkadam/fedfina-backend:${BACKEND_TAG}|g" deploy/deployment-v2.yaml
+        sed -i "s|image: fedfina-frontend:latest|image: salilkadam/fedfina-frontend:${FRONTEND_TAG}|g" deploy/deployment-v2.yaml
+        
+        # Commit changes
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add deploy/deployment-v2.yaml
+        git commit -m "Update image tags to ${BACKEND_TAG} and ${FRONTEND_TAG}" || exit 0
+        git push
+
+  deploy:
+    needs: update-manifests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
-    environment: production
+    if: github.ref == 'refs/heads/main'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Update image tags in production manifests (GitOps)
-      run: |
-        # Get the actual generated tags from the build job
-        BACKEND_TAG="${{ needs.build-and-push.outputs.backend_tag }}"
-        FRONTEND_TAG="${{ needs.build-and-push.outputs.frontend_tag }}"
-        
-        echo "Using backend tag: $BACKEND_TAG"
-        echo "Using frontend tag: $FRONTEND_TAG"
-        
-        # Update manifests with actual tags
-        # Use awk to update specific containers by name
-        awk -v backend_tag="$BACKEND_TAG" -v frontend_tag="$FRONTEND_TAG" '
-        /name: backend/ { in_backend = 1; print; next }
-        /name: frontend/ { in_backend = 0; print; next }
-        /^[[:space:]]*image:/ {
-          if (in_backend) {
-            print "          image: " backend_tag
-          } else {
-            print "          image: " frontend_tag
-          }
-          next
-        }
-        { print }
-        ' deploy/deployment-v2.yaml > deploy/deployment-v2.yaml.tmp && mv deploy/deployment-v2.yaml.tmp deploy/deployment-v2.yaml
 
-    - name: Commit and push updated production manifests
-      uses: stefanzweifel/git-auto-commit-action@v5
+    - name: Install ArgoCD CLI
+      run: |
+        curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+        sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+        rm argocd-linux-amd64
+
+    - name: Login to ArgoCD
+      run: |
+        argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+
+    - name: Sync ArgoCD Application
+      run: |
+        argocd app sync ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }}
+
+    - name: Wait for deployment to be healthy
+      run: |
+        argocd app wait ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }} --health --timeout 600
+
+    - name: Get application status
+      run: |
+        argocd app get ${{ env.ARGOCD_APP_NAME }} --namespace ${{ env.ARGOCD_NAMESPACE }}
+
+    - name: Trigger ArgoCD webhook (if configured)
+      run: |
+        if [ -n "${{ secrets.ARGOCD_WEBHOOK_URL }}" ]; then
+          curl -X POST "${{ secrets.ARGOCD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{"ref": "refs/heads/main"}'
+        fi
+
+  notify:
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify deployment status
+      uses: 8398a7/action-slack@v3
       with:
-        commit_message: "GitOps(prod): update image tags to ${{ github.sha }}"
-        branch: main
-        file_pattern: 'deploy/deployment-v2.yaml'
-        # Prevent triggering another workflow run
-        skip_ci: true
+        status: ${{ job.status }}
+        channel: '#deployments'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+      if: always()

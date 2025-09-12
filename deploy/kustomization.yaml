@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: fedfina-deployment
+
+namespace: fedfina
+
+resources:
+  - deployment-v2.yaml
+  - secrets-updated.yaml
+
+commonLabels:
+  app.kubernetes.io/name: fedfina
+  app.kubernetes.io/version: "1.0.0"
+  app.kubernetes.io/component: application
+  app.kubernetes.io/part-of: fedfina-platform
+
+images:
+  - name: fedfina-backend
+    newName: salilkadam/fedfina-backend
+    newTag: latest
+  - name: fedfina-frontend
+    newName: salilkadam/fedfina-frontend
+    newTag: latest
+
+patchesStrategicMerge:
+  - patches/health-check-patch.yaml
+
+configMapGenerator:
+  - name: fedfina-config
+    literals:
+      - APP_NAME=fedfina
+      - APP_VERSION=1.0.0
+      - ENVIRONMENT=production
+
+secretGenerator:
+  - name: fedfina-secrets
+    files:
+      - .env=../.env
+    type: Opaque

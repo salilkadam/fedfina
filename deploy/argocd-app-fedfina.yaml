@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fedfina-app
+  namespace: argocd
+  labels:
+    app: fedfina
+    environment: production
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/salilkadam/fedfina.git'
+    targetRevision: main
+    path: deploy
+    directory:
+      include: "*.yaml"
+      exclude: "test-*.yaml"
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: fedfina
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+  info:
+    - name: "Application URL"
+      value: "https://fedfina.bionicaisolutions.com"
+    - name: "Environment"
+      value: "Production"
+    - name: "Namespace"
+      value: "fedfina"
