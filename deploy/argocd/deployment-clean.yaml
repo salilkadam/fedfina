@@ -33,7 +33,7 @@ spec:
         - name: regcred
       containers:
         - name: backend
-          image: docker4zerocool/fedfina-backend:latest
+          image: docker4zerocool/fedfina-backend:main-67246f2
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -215,7 +215,7 @@ spec:
         - name: regcred
       containers:
         - name: frontend
-          image: docker4zerocool/fedfina-frontend:latest
+          image: docker4zerocool/fedfina-frontend:main-67246f2
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
