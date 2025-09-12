@@ -8,8 +8,8 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME_BACKEND: salilkadam/fedfina-backend
-  IMAGE_NAME_FRONTEND: salilkadam/fedfina-frontend
+  IMAGE_NAME_BACKEND: docker4zerocool/fedfina-backend
+  IMAGE_NAME_FRONTEND: docker4zerocool/fedfina-frontend
   ARGOCD_APP_NAME: fedfina-app
   ARGOCD_NAMESPACE: argocd
 
@@ -154,17 +154,17 @@ jobs:
     - name: Update deployment manifests with new image tags
       run: |
         # Get the latest image tags
-        BACKEND_TAG=$(docker/metadata-action@v5 --images docker.io/salilkadam/fedfina-backend --tags type=sha,prefix=main- | grep -o 'main-[a-f0-9]*' | head -1)
-        FRONTEND_TAG=$(docker/metadata-action@v5 --images docker.io/salilkadam/fedfina-frontend --tags type=sha,prefix=main- | grep -o 'main-[a-f0-9]*' | head -1)
+        BACKEND_TAG=$(docker/metadata-action@v5 --images docker.io/docker4zerocool/fedfina-backend --tags type=sha,prefix=main- | grep -o 'main-[a-f0-9]*' | head -1)
+        FRONTEND_TAG=$(docker/metadata-action@v5 --images docker.io/docker4zerocool/fedfina-frontend --tags type=sha,prefix=main- | grep -o 'main-[a-f0-9]*' | head -1)
         
         # Update deployment manifests
-        sed -i "s|image: fedfina-backend:latest|image: salilkadam/fedfina-backend:${BACKEND_TAG}|g" deploy/deployment-v2.yaml
-        sed -i "s|image: fedfina-frontend:latest|image: salilkadam/fedfina-frontend:${FRONTEND_TAG}|g" deploy/deployment-v2.yaml
+        sed -i "s|image: fedfina-backend:latest|image: docker4zerocool/fedfina-backend:${BACKEND_TAG}|g" deploy/deployment-clean.yaml
+        sed -i "s|image: fedfina-frontend:latest|image: docker4zerocool/fedfina-frontend:${FRONTEND_TAG}|g" deploy/deployment-clean.yaml
         
         # Commit changes
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add deploy/deployment-v2.yaml
+        git add deploy/deployment-clean.yaml
         git commit -m "Update image tags to ${BACKEND_TAG} and ${FRONTEND_TAG}" || exit 0
         git push
 

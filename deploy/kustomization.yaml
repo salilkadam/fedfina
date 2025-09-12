@@ -18,10 +18,10 @@ commonLabels:
 
 images:
   - name: fedfina-backend
-    newName: salilkadam/fedfina-backend
+    newName: docker4zerocool/fedfina-backend
     newTag: latest
   - name: fedfina-frontend
-    newName: salilkadam/fedfina-frontend
+    newName: docker4zerocool/fedfina-frontend
     newTag: latest
 
 patchesStrategicMerge:
