@@ -15,8 +15,8 @@ spec:
     targetRevision: main
     path: deploy
     directory:
-      include: "*.yaml"
-      exclude: "test-*.yaml"
+      include: "deployment-clean.yaml,secrets-updated.yaml"
+      exclude: "test-*.yaml,kustomization.yaml,patches/*,deployment-v2.yaml"
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: fedfina

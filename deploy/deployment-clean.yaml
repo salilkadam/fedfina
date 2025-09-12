@@ -1,0 +1,343 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fedfina
+---
+
+# Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fedfina-backend
+  namespace: fedfina
+  labels:
+    app.kubernetes.io/name: fedfina-backend
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: fedfina-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fedfina-backend
+  template:
+    metadata:
+      labels:
+        app: fedfina-backend
+        app.kubernetes.io/name: fedfina-backend
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: fedfina-platform
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: backend
+          image: salilkadam/fedfina-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ENV
+              value: "production"
+            - name: API_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: api-secret-key
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: database-url
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: openai-api-key
+            - name: ELEVENLABS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: elevenlabs-api-key
+            - name: ELEVENLABS_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: elevenlabs-webhook-secret
+            - name: MINIO_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: minio-endpoint
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: minio-access-key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: minio-secret-key
+            - name: MINIO_SECURE
+              value: "false"
+            # Email Configuration - Using Local Postfix Relay
+            - name: SMTP_FROM_EMAIL
+              value: "info@bionicaisolutions.com"
+            - name: SMTP_FROM_NAME
+              value: "Postprocess API"
+            - name: SMTP_USE_CC
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: smtp-use-cc
+            # Timezone Configuration for IST
+            - name: DEFAULT_TIMEZONE
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: default-timezone
+            - name: TIMEZONE_OFFSET_HOURS
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: timezone-offset-hours
+            - name: TIMEZONE_OFFSET_MINUTES
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: timezone-offset-minutes
+            - name: BUSINESS_START_HOUR
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: business-start-hour
+            - name: BUSINESS_END_HOUR
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: business-end-hour
+            - name: ENABLE_IST_TIMEZONE
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: enable-ist-timezone
+            - name: SHOW_TIMEZONE_INFO
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: show-timezone-info
+            - name: DISABLE_EMAIL_SENDING
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: disable-email-sending
+            # Redis Configuration
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: redis-url
+            - name: CALLBACK_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: callback-enabled
+            - name: CALLBACK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: callback-url
+            - name: CALLBACK_TIMEOUT_SECONDS
+              valueFrom:
+                secretKeyRef:
+                  name: fedfina-secrets
+                  key: callback-timeout-seconds
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 10
+---
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fedfina-frontend
+  namespace: fedfina
+  labels:
+    app.kubernetes.io/name: fedfina-frontend
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: fedfina-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fedfina-frontend
+  template:
+    metadata:
+      labels:
+        app: fedfina-frontend
+        app.kubernetes.io/name: fedfina-frontend
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: fedfina-platform
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: frontend
+          image: salilkadam/fedfina-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: REACT_APP_API_URL
+              value: "https://fedfina.bionicaisolutions.com/api"
+            - name: REACT_APP_ENV
+              value: "production"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 10
+---
+# Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: fedfina-backend
+  namespace: fedfina
+  labels:
+    app.kubernetes.io/name: fedfina-backend
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: fedfina-platform
+spec:
+  selector:
+    app: fedfina-backend
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: fedfina-frontend
+  namespace: fedfina
+  labels:
+    app.kubernetes.io/name: fedfina-frontend
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: fedfina-platform
+spec:
+  selector:
+    app: fedfina-frontend
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: ClusterIP
+---
+# Ingress for fedfina.bionicaisolutions.com with Let's Encrypt SSL
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fedfina-ingress
+  namespace: fedfina
+  labels:
+    app.kubernetes.io/name: fedfina
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: fedfina-platform
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+spec:
+  tls:
+  - hosts:
+    - fedfina.bionicaisolutions.com
+    secretName: fedfina-tls
+  rules:
+    - host: fedfina.bionicaisolutions.com
+      http:
+        paths:
+          # Frontend routes
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fedfina-frontend
+                port:
+                  number: 3000
+          # Backend API routes
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: fedfina-backend
+                port:
+                  number: 8000
