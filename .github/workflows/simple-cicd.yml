@@ -146,7 +146,7 @@ jobs:
     - name: Login to ArgoCD
       run: |
         echo "Logging into ArgoCD at: ${{ secrets.ARGOCD_SERVER }}"
-        argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure
+        argocd login ${{ secrets.ARGOCD_SERVER }} --username ${{ secrets.ARGOCD_USERNAME }} --password ${{ secrets.ARGOCD_PASSWORD }} --insecure --grpc-web
 
     - name: Sync ArgoCD Application
       run: |
