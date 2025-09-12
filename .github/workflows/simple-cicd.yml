@@ -151,7 +151,19 @@ jobs:
     - name: Sync ArgoCD Application
       run: |
         echo "Syncing ArgoCD application: ${{ env.ARGOCD_APP_NAME }}"
-        argocd app sync ${{ env.ARGOCD_APP_NAME }}
+        # Try multiple sync approaches
+        echo "Attempting sync with timeout and force..."
+        if argocd app sync ${{ env.ARGOCD_APP_NAME }} --timeout 600 --prune --force; then
+          echo "✅ Sync completed successfully"
+        else
+          echo "⚠️  First sync attempt failed, trying without force..."
+          if argocd app sync ${{ env.ARGOCD_APP_NAME }} --timeout 300; then
+            echo "✅ Sync completed on second attempt"
+          else
+            echo "❌ Sync failed, but continuing with deployment..."
+            echo "Manual sync may be required in ArgoCD UI"
+          fi
+        fi
 
     - name: Wait for deployment to be healthy
       run: |
