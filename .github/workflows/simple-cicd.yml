@@ -123,6 +123,7 @@ jobs:
     needs: update-deployment
     runs-on: ubuntu-latest
     if: success()
+    continue-on-error: true
     
     steps:
     - name: Install ArgoCD CLI
@@ -130,6 +131,17 @@ jobs:
         curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
         sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
         rm argocd-linux-amd64
+
+    - name: Test ArgoCD connectivity
+      run: |
+        echo "Testing connectivity to ArgoCD server..."
+        if curl -I --connect-timeout 10 ${{ secrets.ARGOCD_SERVER }}; then
+          echo "✅ ArgoCD server is reachable"
+        else
+          echo "❌ ArgoCD server is not reachable from GitHub Actions"
+          echo "This might be due to network restrictions or server downtime"
+          exit 1
+        fi
 
     - name: Login to ArgoCD
       run: |
@@ -164,10 +176,22 @@ jobs:
         echo "Update Deployment: ${{ needs.update-deployment.result }}"
         echo "Sync ArgoCD: ${{ needs.sync-argocd.result }}"
         
-        if [ "${{ needs.sync-argocd.result }}" == "success" ]; then
-          echo "✅ Deployment successful!"
-          echo "🚀 FedFina application deployed successfully"
-          echo "🌐 Application URL: https://fedfina.bionicaisolutions.com"
+        if [ "${{ needs.build-and-push.result }}" == "success" ] && [ "${{ needs.update-deployment.result }}" == "success" ]; then
+          if [ "${{ needs.sync-argocd.result }}" == "success" ]; then
+            echo "✅ Full deployment successful!"
+            echo "🚀 FedFina application deployed successfully"
+            echo "🌐 Application URL: https://fedfina.bionicaisolutions.com"
+          else
+            echo "⚠️  Partial deployment successful!"
+            echo "✅ Docker images built and pushed successfully"
+            echo "✅ Deployment manifests updated"
+            echo "❌ ArgoCD sync failed - manual sync may be required"
+            echo ""
+            echo "Next steps:"
+            echo "1. Check ArgoCD server connectivity"
+            echo "2. Manually sync the application in ArgoCD UI"
+            echo "3. Or run: argocd app sync fedfina-app --namespace argocd"
+          fi
         else
           echo "❌ Deployment failed!"
           echo "🔍 Check the logs above for details"
